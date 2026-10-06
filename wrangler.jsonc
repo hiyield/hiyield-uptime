@@ -34,6 +34,13 @@
         "PUBLIC_BASE_URL": "https://hiyield-uptime-staging.hiyieldapps.workers.dev",
         "BETTER_AUTH_URL": "https://hiyield-uptime-staging.hiyieldapps.workers.dev"
       },
+      "durable_objects": {
+        "bindings": [
+          { "name": "MONITOR", "class_name": "MonitorDO" },
+          { "name": "PROBE", "class_name": "ProbeDO" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MonitorDO", "ProbeDO"] }],
       "d1_databases": [
         {
           "binding": "DB",
@@ -53,6 +60,13 @@
         "PUBLIC_BASE_URL": "https://hiyield-uptime.hiyieldapps.workers.dev",
         "BETTER_AUTH_URL": "https://hiyield-uptime.hiyieldapps.workers.dev"
       },
+      "durable_objects": {
+        "bindings": [
+          { "name": "MONITOR", "class_name": "MonitorDO" },
+          { "name": "PROBE", "class_name": "ProbeDO" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MonitorDO", "ProbeDO"] }],
       "d1_databases": [
         {
           "binding": "DB",

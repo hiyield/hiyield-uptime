@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Dev sidecar (`npm run dev:engine`, :8787) AND the integration-test worker.
+  // Shares the local D1 with `nuxt dev` because both key the SQLite file by database_name.
+  // `wrangler dev` auto-loads .env for RESEND_API_KEY / PUBLIC_BASE_URL / MAIL_FROM.
+  "name": "hiyield-uptime-engine-dev",
+  "main": ".cloudflare/engine-dev.ts",
+  "compatibility_date": "2026-08-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "MONITOR", "class_name": "MonitorDO" },
+      { "name": "PROBE", "class_name": "ProbeDO" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MonitorDO", "ProbeDO"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hiyield-uptime",
+      "database_id": "LOCAL_PLACEHOLDER",
+      "migrations_dir": "server/db/migrations"
+    }
+  ]
+}

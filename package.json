@@ -7,7 +7,9 @@
   },
   "scripts": {
     "build": "nuxt build",
-    "dev": "npm run db:migrate && nuxt dev",
+    "dev": "npm run db:migrate && concurrently -k -n nuxt,engine -c green,magenta \"npm:dev:nuxt\" \"npm:dev:engine\"",
+    "dev:nuxt": "nuxt dev",
+    "dev:engine": "wrangler dev -c wrangler.dev.jsonc --port 8787 --inspector-port 9229",
     "cf:dev": "nuxt build && npm run cf:migrate && wrangler dev --env staging",
     "db:migrate": "wrangler d1 migrations apply hiyield-uptime --local",
     "cf:migrate": "wrangler d1 migrations apply hiyield-uptime-staging --local --env staging",
@@ -16,7 +18,9 @@
     "format": "prettier --write .",
     "typecheck": "nuxt typecheck",
     "test": "vitest run --project unit",
-    "test:watch": "vitest --project unit"
+    "test:watch": "vitest --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run"
   },
   "dependencies": {
     "@nuxt/ui": "4.8.0",
@@ -29,6 +33,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20261006.1",
     "@nuxt/eslint": "^1.17.0",
     "@types/better-sqlite3": "^9.6.0",
@@ -42,5 +47,9 @@
     "vitest": "^4.1.11",
     "vue-tsc": "^3.3.12",
     "wrangler": "^4.147.0"
+  },
+  "overrides": {
+    "miniflare": "5.20261001.0-alpha",
+    "workerd": "1.20261001.1"
   }
 }
