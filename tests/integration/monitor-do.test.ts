@@ -26,6 +26,7 @@ interface Harness {
   probe: CheckResult[]
   sent: { contact: Contact; event: AlertEvent }[]
   throwOnCheck?: boolean
+  throwOnProbe?: boolean
   /** Awaited inside runCheck before it returns; lets a test hold a tick mid-flight. */
   beforeCheck?: () => Promise<void>
 }
@@ -61,7 +62,10 @@ function withMonitor<R>(id: string, h: Harness, fn: (m: MonitorDO, state: Durabl
         await h.beforeCheck?.()
         return r
       },
-      probe: async () => h.probe.shift() ?? res(true),
+      probe: async () => {
+        if (h.throwOnProbe) throw new Error('probe down')
+        return h.probe.shift() ?? res(true)
+      },
       sendAlert: async (contact, event, onAttempt) => {
         h.sent.push({ contact, event })
         await onAttempt?.({ attempt: 1, ok: true, error: null })
@@ -310,5 +314,27 @@ describe('MonitorDO', () => {
     })
     expect(h.sent).toEqual([])
     expect(await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm11'))).toEqual([])
+  })
+
+  it('a probe that throws counts the failure as confirmed', async () => {
+    clock = T
+    await seed('m12', { failThreshold: 1 })
+    const h = harness()
+    h.primary.push(res(false))
+    h.throwOnProbe = true
+    await withMonitor('m12', h, async (m) => {
+      await m.reload('m12')
+      await m.alarm()
+    })
+    expect(h.sent.map((s) => s.event.kind)).toEqual(['down'])
+    const rows = await db.select().from(schema.checks).where(eq(schema.checks.monitorId, 'm12'))
+    expect(rows.map((r) => [r.region, r.ok, r.confirmed])).toEqual([
+      ['primary', false, true],
+      ['probe', false, true]
+    ])
+    expect(rows[1]!.error).toMatch(/^Probe unavailable/)
+    const incidents = await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm12'))
+    expect(incidents).toHaveLength(1)
+    expect(incidents[0]!.resolvedAt).toBeNull()
   })
 })
