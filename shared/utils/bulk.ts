@@ -7,11 +7,15 @@ export interface BulkRow {
   error: string | null
 }
 
+export const ALREADY_MONITORED = 'Already monitored'
+
 /**
  * One site per line: `name, url`. Splits on the FIRST comma so URLs may contain commas.
  * Blank lines and lines starting with # are skipped. Line numbers are 1-based.
+ * `existingUrls` (already normalised, as stored) flags sites that are already monitors.
  */
-export function parseBulk(text: string): BulkRow[] {
+export function parseBulk(text: string, existingUrls: Iterable<string> = []): BulkRow[] {
+  const existing = new Set(existingUrls)
   const rows: BulkRow[] = []
   const seen = new Map<string, number>()
   text.split(/\r?\n/).forEach((raw, i) => {
@@ -29,6 +33,7 @@ export function parseBulk(text: string): BulkRow[] {
     let error: string | null = null
     if (!name) error = 'Name is required'
     else if (!url) error = URL_ERROR
+    else if (existing.has(url)) error = ALREADY_MONITORED
     else if (seen.has(url)) error = `Duplicate URL (line ${seen.get(url)})`
     if (url && !seen.has(url)) seen.set(url, line)
     rows.push({ line, name, url: url ?? rawUrl, error })

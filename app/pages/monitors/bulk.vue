@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { BoardRow } from '~~/server/utils/stats'
 import { parseBulk, type BulkRow } from '~~/shared/utils/bulk'
 
 const text = ref('')
-const rows = computed(() => parseBulk(text.value))
+// Existing monitors, so the preview can flag "Already monitored" before submitting (the server checks too).
+const { data: existing } = await useFetch<{ monitors: BoardRow[] }>('/api/monitors')
+const rows = computed(() =>
+  parseBulk(
+    text.value,
+    (existing.value?.monitors ?? []).map((m) => m.url)
+  )
+)
 const errors = computed(() => rows.value.filter((r) => r.error).length)
 const submitting = ref(false)
 

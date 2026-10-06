@@ -79,6 +79,12 @@ describe('parseBulk', () => {
       'Duplicate URL (line 4)'
     ])
   })
+  it('flags URLs that are already monitored (compared after normalising)', () => {
+    const rows = parseBulk('Acme, HTTPS://acme.example\nBeta, https://beta.example', [
+      'https://acme.example/'
+    ])
+    expect(rows.map((r) => r.error)).toEqual(['Already monitored', null])
+  })
 })
 
 describe('monitor persistence', () => {
