@@ -12,14 +12,16 @@ describe('assertAllowedSignup', () => {
 })
 
 describe('isPublicApiPath', () => {
-  it('lets auth and cron through', () => {
+  it('lets auth, cron and icon routes through', () => {
     expect(isPublicApiPath('/api/auth/sign-in/social')).toBe(true)
     expect(isPublicApiPath('/api/auth/callback/google')).toBe(true)
     expect(isPublicApiPath('/api/cron/prune')).toBe(true)
+    expect(isPublicApiPath('/api/_nuxt_icon/lucide.json?icons=check')).toBe(true)
   })
   it('protects everything else', () => {
     expect(isPublicApiPath('/api/monitors')).toBe(false)
     expect(isPublicApiPath('/api/authx')).toBe(false)
+    expect(isPublicApiPath('/api/_nuxt_iconx')).toBe(false)
     expect(isPublicApiPath('/api/contacts/1/test')).toBe(false)
   })
 })
