@@ -26,6 +26,8 @@ interface Harness {
   probe: CheckResult[]
   sent: { contact: Contact; event: AlertEvent }[]
   throwOnCheck?: boolean
+  /** Awaited inside runCheck before it returns; lets a test hold a tick mid-flight. */
+  beforeCheck?: () => Promise<void>
 }
 
 const harness = (): Harness => ({ primary: [], probe: [], sent: [] })
@@ -55,7 +57,9 @@ function withMonitor<R>(id: string, h: Harness, fn: (m: MonitorDO, state: Durabl
     instance.deps = {
       runCheck: async () => {
         if (h.throwOnCheck) throw new Error('boom')
-        return h.primary.shift() ?? res(true)
+        const r = h.primary.shift() ?? res(true)
+        await h.beforeCheck?.()
+        return r
       },
       probe: async () => h.probe.shift() ?? res(true),
       sendAlert: async (contact, event, onAttempt) => {
@@ -68,6 +72,22 @@ function withMonitor<R>(id: string, h: Harness, fn: (m: MonitorDO, state: Durabl
     }
     return fn(instance, state)
   })
+}
+
+/** A runCheck gate: `entered` resolves once a check is in flight; `release()` lets it finish. */
+function gate() {
+  let release!: () => void
+  let entered!: () => void
+  const released = new Promise<void>((r) => (release = r))
+  const enteredP = new Promise<void>((r) => (entered = r))
+  return {
+    hold: async () => {
+      entered()
+      await released
+    },
+    entered: enteredP,
+    release
+  }
 }
 
 const monitorRow = (id: string) => db.query.monitors.findFirst({ where: eq(schema.monitors.id, id) })
@@ -233,5 +253,62 @@ describe('MonitorDO', () => {
     })
     expect(r.status).toBe(200)
     expect((await stub.fetch('https://monitor/nope', { method: 'POST' })).status).toBe(404)
+  })
+
+  it('pause while a tick is in flight: the tick aborts (no alert, no incident, no writes, no alarm)', async () => {
+    clock = T
+    await seed('m10', { failThreshold: 1 })
+    const h = harness()
+    h.primary.push(res(false), res(false))
+    h.probe.push(res(false), res(false))
+    await withMonitor('m10', h, async (m, state) => {
+      await m.reload('m10')
+      await m.alarm() // down: incident + 'down' alert
+      clock += 300_000
+      const g = gate()
+      h.beforeCheck = g.hold
+      const ticking = m.alarm()
+      await g.entered
+      // What the pause route does: D1 update, then /stop.
+      await db
+        .update(schema.monitors)
+        .set({ paused: true, status: 'paused', consecutiveFailures: 0 })
+        .where(eq(schema.monitors.id, 'm10'))
+      await m.stop()
+      g.release()
+      await ticking
+      expect(await state.storage.get('state')).toBeUndefined()
+      expect(await state.storage.getAlarm()).toBeNull()
+    })
+    expect(h.sent.map((s) => s.event.kind)).toEqual(['down'])
+    expect(await monitorRow('m10')).toMatchObject({ paused: true, status: 'paused' })
+    const incidents = await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm10'))
+    expect(incidents).toHaveLength(1)
+    expect(incidents[0]!.resolvedAt).not.toBeNull()
+  })
+
+  it('delete while a tick is in flight: the tick aborts and leaves no storage behind', async () => {
+    clock = T
+    await seed('m11', { failThreshold: 1 })
+    const h = harness()
+    h.primary.push(res(false))
+    h.probe.push(res(false))
+    await withMonitor('m11', h, async (m, state) => {
+      await m.reload('m11')
+      const g = gate()
+      h.beforeCheck = g.hold
+      const ticking = m.alarm()
+      await g.entered
+      // What the delete route does: /destroy, then delete the row.
+      await m.destroy()
+      await db.delete(schema.monitors).where(eq(schema.monitors.id, 'm11'))
+      g.release()
+      await ticking
+      expect(await state.storage.get('state')).toBeUndefined()
+      expect(await state.storage.get('monitorId')).toBeUndefined()
+      expect(await state.storage.getAlarm()).toBeNull()
+    })
+    expect(h.sent).toEqual([])
+    expect(await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm11'))).toEqual([])
   })
 })

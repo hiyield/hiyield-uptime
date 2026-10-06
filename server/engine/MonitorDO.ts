@@ -28,6 +28,16 @@ export interface MonitorDeps {
 /** Retry delay when a tick blows up, so one bad tick can never stop a monitor. */
 const CRASH_RETRY_MS = 60_000
 
+/**
+ * Thrown inside a tick when the monitor was paused or deleted while the tick was awaiting
+ * outbound I/O (fetch/D1 release the DO input gate, so /stop or /destroy can run mid-tick).
+ */
+class TickAborted extends Error {
+  constructor(readonly monitorId: string) {
+    super('tick aborted: monitor paused or deleted')
+  }
+}
+
 async function safe<T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn()
@@ -39,8 +49,9 @@ async function safe<T>(label: string, fn: () => Promise<T>, fallback: T): Promis
 
 /**
  * One instance per monitored site, named by monitor id (`idFromName(monitorId)`).
- * Storage: `monitorId` (string), `state` (MonitorState). Config is re-read from D1
- * on every tick, so dashboard edits apply on the next check without a message.
+ * Storage: `monitorId` (string), `state` (MonitorState), `generation` (number, bumped by
+ * stop() so an in-flight tick can tell it was paused). Config is re-read from D1 on every
+ * tick, so dashboard edits apply on the next check without a message.
  */
 export class MonitorDO {
   deps: MonitorDeps
@@ -106,6 +117,7 @@ export class MonitorDO {
 
   /** Pause: no more checks; any open incident is closed silently so resuming starts clean. */
   async stop(): Promise<void> {
+    await this.ctx.storage.put('generation', (await this.generation()) + 1)
     await this.ctx.storage.deleteAlarm()
     await this.ctx.storage.delete('state')
     const monitorId = await this.ctx.storage.get<string>('monitorId')
@@ -116,9 +128,23 @@ export class MonitorDO {
     if (await this.ctx.storage.get<string>('monitorId')) await this.ctx.storage.setAlarm(this.deps.now())
   }
 
+  /** deleteAll() also removes `monitorId`, which is what an in-flight tick notices. */
   async destroy(): Promise<void> {
     await this.ctx.storage.deleteAlarm()
     await this.ctx.storage.deleteAll()
+  }
+
+  private async generation(): Promise<number> {
+    return (await this.ctx.storage.get<number>('generation')) ?? 0
+  }
+
+  /**
+   * Throws TickAborted if stop()/destroy() ran since the tick started. Storage reads keep the
+   * input gate closed, so nothing can interleave between this check and the storage write after it.
+   */
+  private async assertCurrent(monitorId: string, generation: number): Promise<void> {
+    const [id, gen] = await Promise.all([this.ctx.storage.get<string>('monitorId'), this.generation()])
+    if (id !== monitorId || gen !== generation) throw new TickAborted(monitorId)
   }
 
   async alarm(): Promise<void> {
@@ -134,11 +160,28 @@ export class MonitorDO {
 
   /** One check cycle. Returns when to run next, or null to stop (monitor deleted or paused). */
   async tick(): Promise<number | null> {
+    try {
+      return await this.runTick()
+    } catch (err) {
+      if (!(err instanceof TickAborted)) throw err
+      // An incident insert may have raced stop()'s resolve; pausing always leaves none open.
+      await safe(
+        'resolveOpenIncidents',
+        () => repo.resolveOpenIncidents(this.db, err.monitorId, this.deps.now()),
+        undefined
+      )
+      return null
+    }
+  }
+
+  private async runTick(): Promise<number | null> {
     const monitorId = await this.ctx.storage.get<string>('monitorId')
     if (!monitorId) return null
+    const generation = await this.generation()
     const db = this.db
     const config = await repo.getMonitor(db, monitorId)
     if (!config || config.paused) return null
+    const current = () => this.assertCurrent(monitorId, generation)
 
     const primary = await this.deps.runCheck(config.url, config.timeoutMs)
     let probe: CheckResult | null = null
@@ -159,6 +202,11 @@ export class MonitorDO {
 
     const now = this.deps.now()
     const inMaintenance = await safe('isInMaintenance', () => repo.isInMaintenance(db, monitorId, now), false)
+    // The checks above can take seconds; the pause route flips D1 before calling /stop, and
+    // delete removes the row after /destroy, so re-check both D1 and storage before any write.
+    const latest = await repo.getMonitor(db, monitorId)
+    if (!latest || latest.paused) return null
+    await current()
     const state = (await this.ctx.storage.get<MonitorState>('state')) ?? initialState()
     const result = evaluate({
       state,
@@ -192,8 +240,9 @@ export class MonitorDO {
       undefined
     )
 
-    await this.execute(config, result)
+    await this.execute(config, result, current)
 
+    await current()
     await safe(
       'updateMonitorStatus',
       () =>
@@ -206,12 +255,19 @@ export class MonitorDO {
         }),
       undefined
     )
+    // Last check before alarm() re-arms: a pause that landed during the D1 write must win.
+    await current()
     return result.nextCheckAt
   }
 
-  private async execute(config: MonitorConfig, result: EvaluateResult): Promise<void> {
+  private async execute(
+    config: MonitorConfig,
+    result: EvaluateResult,
+    current: () => Promise<void>
+  ): Promise<void> {
     const db = this.db
     for (const action of result.actions) {
+      await current()
       switch (action.type) {
         case 'openIncident':
           await safe(

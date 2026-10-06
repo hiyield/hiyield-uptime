@@ -122,4 +122,18 @@ describe('repo', () => {
     })
     expect(await db.select().from(schema.alertDeliveries)).toHaveLength(1)
   })
+
+  it('updateMonitorStatus never overwrites a paused row', async () => {
+    const db = makeDb()
+    const m = await seedMonitor(db, { paused: true, status: 'paused' })
+    await repo.updateMonitorStatus(db, m.id, {
+      status: 'down',
+      consecutiveFailures: 1,
+      lastCheckedAt: T0,
+      lastResponseMs: null,
+      lastStatusCode: 503
+    })
+    const row = await db.query.monitors.findFirst({ where: eq(schema.monitors.id, m.id) })
+    expect(row).toMatchObject({ paused: true, status: 'paused', consecutiveFailures: 0, lastCheckedAt: null })
+  })
 })

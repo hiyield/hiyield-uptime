@@ -97,5 +97,9 @@ export async function updateMonitorStatus(
   id: string,
   patch: MonitorStatusPatch
 ): Promise<void> {
-  await db.update(schema.monitors).set(patch).where(eq(schema.monitors.id, id))
+  // Never overwrite a paused row: a tick racing the pause route must not resurrect its status.
+  await db
+    .update(schema.monitors)
+    .set(patch)
+    .where(and(eq(schema.monitors.id, id), eq(schema.monitors.paused, false)))
 }
