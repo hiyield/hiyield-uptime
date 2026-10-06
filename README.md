@@ -68,6 +68,8 @@ After the first deploy:
 3. Point an external pinger (healthchecks.io or UptimeRobot free) at `https://<host>/health`, alerting the dev team. This is what tells you if the monitor itself dies.
 4. Confirm the two cron triggers registered (Cloudflare dashboard → Worker → Settings → Triggers); `wrangler --dry-run` doesn't print them.
 
+**D1 plan and the status board.** The board (`/`) polls `GET /api/monitors` every 15 seconds, and each refresh scans the last 24 hours of `checks` to compute uptime — roughly 30k rows read per refresh with a typical client list (more sites or shorter intervals read more). One board left open reads ~100M+ rows/day, far past the D1 free plan's 5M rows/day. Run this on paid D1 (Workers Paid), or raise the poll interval in `app/pages/index.vue` if you must stay on the free plan.
+
 Custom domain: not set yet. When decided, add a `routes` entry with `custom_domain: true` to the env in `wrangler.jsonc`, update `PUBLIC_BASE_URL` / `BETTER_AUTH_URL`, and add the new Google redirect URI.
 
 ## Dependency pins
