@@ -25,6 +25,11 @@ const form = reactive({
 const saving = ref(false)
 
 async function create() {
+  const invalid = rangeError(form.startsAt, form.endsAt)
+  if (invalid) {
+    toast.add({ title: 'Could not schedule maintenance', description: invalid, color: 'error' })
+    return
+  }
   saving.value = true
   try {
     await $fetch('/api/maintenance', {

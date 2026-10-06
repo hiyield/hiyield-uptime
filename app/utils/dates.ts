@@ -12,3 +12,15 @@ export function toLocalInput(ms: number): string {
 export function fromLocalInput(value: string): number {
   return new Date(value).getTime()
 }
+
+/**
+ * Client-side check for a datetime-local start/end pair, before posting. An empty input gives
+ * NaN, which the server would only reject with a cryptic "expected number".
+ */
+export function rangeError(startsAt: string, endsAt: string): string | null {
+  const start = fromLocalInput(startsAt)
+  const end = fromLocalInput(endsAt)
+  if (!startsAt || !endsAt || Number.isNaN(start) || Number.isNaN(end)) return 'Start and end are required'
+  if (end <= start) return 'End must be after start'
+  return null
+}
