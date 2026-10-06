@@ -3,8 +3,26 @@ import type { TableColumn } from '@nuxt/ui'
 import type { BoardRow } from '~~/server/utils/stats'
 import { formatDuration, formatInterval } from '~~/shared/utils/format'
 
-const { data, refresh } = await useFetch<{ monitors: BoardRow[] }>('/api/monitors')
+const lastUpdated = ref<number | null>(null)
+const { data, error, refresh } = await useFetch<{ monitors: BoardRow[] }>('/api/monitors', {
+  onResponse({ response }) {
+    if (response.ok) lastUpdated.value = Date.now()
+  }
+})
 useIntervalFn(() => refresh(), 15_000)
+// Keep showing the last good board if a refresh fails (wall board: never flash "no monitors").
+const lastGood = ref<BoardRow[] | null>(null)
+watch(
+  data,
+  (v) => {
+    if (v) lastGood.value = v.monitors
+  },
+  { immediate: true }
+)
+const loaded = computed(() => lastGood.value !== null)
+const lastUpdatedLabel = computed(() =>
+  lastUpdated.value ? new Date(lastUpdated.value).toLocaleTimeString('en-GB', { hour12: false }) : null
+)
 // @vueuse/core 15 dropped the `interval` shorthand in favour of a `scheduler`; this ticks `now` every second.
 const now = useNow({ scheduler: (cb) => useIntervalFn(cb, 1000) })
 
@@ -18,7 +36,7 @@ const filterItems: { label: string; value: Filter }[] = [
   { label: 'Paused', value: 'paused' }
 ]
 
-const monitors = computed(() => data.value?.monitors ?? [])
+const monitors = computed(() => lastGood.value ?? [])
 const isDown = (m: BoardRow) => m.status === 'down' || m.status === 'suspect'
 const isUp = (m: BoardRow) => m.status === 'up' || m.status === 'unknown'
 const counts = computed(() => ({
@@ -55,9 +73,10 @@ const columns: TableColumn<BoardRow>[] = [
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold">Status</h1>
-        <p class="text-sm text-slate-500">
+        <p v-if="loaded" class="text-sm text-slate-500">
           <span :class="counts.down ? 'font-medium text-red-600' : ''">{{ counts.down }} down</span>
           · {{ counts.up }} up · {{ counts.paused }} paused
+          <span v-if="lastUpdatedLabel" class="text-slate-400"> · Last updated {{ lastUpdatedLabel }}</span>
         </p>
       </div>
       <div class="flex gap-2">
@@ -65,6 +84,19 @@ const columns: TableColumn<BoardRow>[] = [
         <UButton to="/monitors/new" icon="i-lucide-plus">Add monitor</UButton>
       </div>
     </div>
+
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      title="Could not load monitors"
+      :description="
+        loaded
+          ? `Showing the last good data${lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ''}. Retrying every 15 seconds.`
+          : 'Retrying every 15 seconds.'
+      "
+    />
 
     <div class="flex flex-wrap gap-2">
       <UInput v-model="search" icon="i-lucide-search" placeholder="Search name or URL" class="w-64" />
@@ -103,7 +135,13 @@ const columns: TableColumn<BoardRow>[] = [
           <span v-else class="text-slate-400">—</span>
         </template>
         <template #empty>
-          <div class="py-10 text-center text-sm text-slate-500">
+          <div v-if="!loaded" class="py-10 text-center text-sm text-slate-500">
+            {{ error ? 'Monitors unavailable.' : 'Loading…' }}
+          </div>
+          <div v-else-if="monitors.length" class="py-10 text-center text-sm text-slate-500">
+            No monitors match.
+          </div>
+          <div v-else class="py-10 text-center text-sm text-slate-500">
             No monitors yet.
             <NuxtLink to="/monitors/new" class="underline">Add one</NuxtLink>
             or
