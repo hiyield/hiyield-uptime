@@ -35,6 +35,16 @@ const label = (t: number) =>
 
 const last = computed(() => (props.points.length ? props.points[props.points.length - 1] : null))
 
+// The <svg> uses preserveAspectRatio="none" so its box maps linearly onto the 640×160
+// viewBox with no letterboxing (the box is normally wider than the 4:1 viewBox on a
+// desktop card) — pointer math and label placement can then use simple percentages of
+// the box instead of having to measure and compensate for letterboxed content. Text
+// stays undistorted by that non-uniform scale because every label below is plain HTML
+// positioned over the chart, not SVG <text>; strokes stay a constant width via
+// vector-effect="non-scaling-stroke" on each stroked element.
+const pctX = (vx: number) => (vx / W) * 100
+const pctY = (vy: number) => (vy / H) * 100
+
 // Hover crosshair + tooltip (interaction.md): the X is tracked to the nearest point,
 // one readout lists value and time, reachable by pointer or by arrow-key focus.
 const svgEl = useTemplateRef<SVGSVGElement>('svgEl')
@@ -42,13 +52,15 @@ const hoverIndex = ref<number | null>(null)
 const hovered = computed(() => (hoverIndex.value != null ? (props.points[hoverIndex.value] ?? null) : null))
 const tooltipStyle = computed(() => {
   if (!hovered.value) return {}
-  const left = Math.min(94, Math.max(6, (x(hovered.value.t) / W) * 100))
-  const top = Math.min(80, Math.max(4, (y(hovered.value.avgMs) / H) * 100))
+  const left = Math.min(94, Math.max(6, pctX(x(hovered.value.t))))
+  const top = Math.min(80, Math.max(4, pctY(y(hovered.value.avgMs))))
   return { left: `${left}%`, top: `${top}%` }
 })
 
 function nearestIndex(clientX: number): number {
   const rect = svgEl.value!.getBoundingClientRect()
+  // Box maps 1:1 onto the viewBox (preserveAspectRatio="none"), so this ratio is exact
+  // regardless of the box's actual width.
   const localX = ((clientX - rect.left) / rect.width) * W
   let best = 0
   let bestDist = Infinity
@@ -89,13 +101,14 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative h-40 w-full">
     <svg
       v-if="points.length > 1"
       ref="svgEl"
       :viewBox="`0 0 ${W} ${H}`"
-      class="h-40 w-full"
-      role="img"
+      preserveAspectRatio="none"
+      class="absolute inset-0 h-full w-full"
+      role="group"
       tabindex="0"
       :aria-label="`Average response time, ${points.length} data points, last ${last ? `${last.avgMs} ms` : 'n/a'}`"
       @pointermove="onPointerMove"
@@ -104,25 +117,17 @@ function onKeydown(e: KeyboardEvent) {
       @blur="onBlur"
       @keydown="onKeydown"
     >
-      <g v-for="tick in ticks" :key="tick">
-        <line
-          :x1="PAD.left"
-          :x2="W - PAD.right"
-          :y1="y(tick)"
-          :y2="y(tick)"
-          :stroke="GRIDLINE"
-          stroke-width="1"
-        />
-        <text
-          :x="PAD.left - 6"
-          :y="y(tick) + 4"
-          text-anchor="end"
-          :fill="INK_MUTED"
-          class="font-mono text-[10px]"
-        >
-          {{ tick }}ms
-        </text>
-      </g>
+      <line
+        v-for="tick in ticks"
+        :key="tick"
+        :x1="PAD.left"
+        :x2="W - PAD.right"
+        :y1="y(tick)"
+        :y2="y(tick)"
+        :stroke="GRIDLINE"
+        stroke-width="1"
+        vector-effect="non-scaling-stroke"
+      />
 
       <polyline
         :points="path"
@@ -131,21 +136,21 @@ function onKeydown(e: KeyboardEvent) {
         stroke-width="2"
         stroke-linejoin="round"
         stroke-linecap="round"
+        vector-effect="non-scaling-stroke"
       />
 
-      <!-- direct end label (marks-and-anatomy.md: lines label the end, not every point) -->
-      <template v-if="last">
-        <circle :cx="x(last.t)" :cy="y(last.avgMs)" r="4" :fill="SERIES" :stroke="SURFACE" stroke-width="2" />
-        <text
-          :x="x(last.t) - 8"
-          :y="Math.max(10, y(last.avgMs) - 8)"
-          text-anchor="end"
-          :fill="INK_SECONDARY"
-          class="font-mono text-[10px]"
-        >
-          {{ last.avgMs }}ms
-        </text>
-      </template>
+      <!-- direct end marker (marks-and-anatomy.md: lines label the end, not every point — the
+           value itself is an HTML overlay below, kept out of the distorted coordinate space) -->
+      <circle
+        v-if="last"
+        :cx="x(last.t)"
+        :cy="y(last.avgMs)"
+        r="4"
+        :fill="SERIES"
+        :stroke="SURFACE"
+        stroke-width="2"
+        vector-effect="non-scaling-stroke"
+      />
 
       <!-- hover crosshair -->
       <template v-if="hovered">
@@ -156,6 +161,7 @@ function onKeydown(e: KeyboardEvent) {
           :y2="H - PAD.bottom"
           :stroke="BASELINE"
           stroke-width="1"
+          vector-effect="non-scaling-stroke"
         />
         <circle
           :cx="x(hovered.t)"
@@ -164,15 +170,65 @@ function onKeydown(e: KeyboardEvent) {
           :fill="SERIES"
           :stroke="SURFACE"
           stroke-width="2"
+          vector-effect="non-scaling-stroke"
         />
       </template>
-
-      <text :x="PAD.left" :y="H - 4" :fill="INK_MUTED" class="text-[10px]">{{ label(from) }}</text>
-      <text :x="W - PAD.right" :y="H - 4" text-anchor="end" :fill="INK_MUTED" class="text-[10px]">
-        {{ label(to) }}
-      </text>
     </svg>
-    <div v-else class="flex h-40 items-center justify-center text-sm text-[#898781]">Not enough data yet</div>
+    <div v-else class="flex h-full items-center justify-center text-sm text-[#898781]">
+      Not enough data yet
+    </div>
+
+    <template v-if="points.length > 1">
+      <div
+        v-for="tick in ticks"
+        :key="tick"
+        class="pointer-events-none absolute font-mono text-[10px]"
+        :style="{
+          left: `calc(${pctX(PAD.left)}% - 6px)`,
+          top: `${pctY(y(tick))}%`,
+          transform: 'translate(-100%, -50%)',
+          color: INK_MUTED
+        }"
+      >
+        {{ tick }}ms
+      </div>
+
+      <div
+        v-if="last"
+        class="pointer-events-none absolute font-mono text-[10px]"
+        :style="{
+          left: `calc(${pctX(x(last.t))}% - 8px)`,
+          top: `${pctY(y(last.avgMs))}%`,
+          transform: 'translate(-100%, calc(-100% - 6px))',
+          color: INK_SECONDARY
+        }"
+      >
+        {{ last.avgMs }}ms
+      </div>
+
+      <div
+        class="pointer-events-none absolute text-[10px]"
+        :style="{
+          left: `${pctX(PAD.left)}%`,
+          top: `${pctY(H - 4)}%`,
+          transform: 'translate(0, -50%)',
+          color: INK_MUTED
+        }"
+      >
+        {{ label(from) }}
+      </div>
+      <div
+        class="pointer-events-none absolute text-[10px]"
+        :style="{
+          left: `${pctX(W - PAD.right)}%`,
+          top: `${pctY(H - 4)}%`,
+          transform: 'translate(-100%, -50%)',
+          color: INK_MUTED
+        }"
+      >
+        {{ label(to) }}
+      </div>
+    </template>
 
     <div
       v-if="hovered"
