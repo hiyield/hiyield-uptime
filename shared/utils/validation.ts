@@ -53,3 +53,45 @@ export const testUrlSchema = z.object({
   url: urlField,
   timeoutMs: z.number().int().min(TIMEOUT_MS_MIN).max(TIMEOUT_MS_MAX).default(10_000)
 })
+
+const contactName = z.string().trim().min(1, 'Name is required').max(80)
+export const SLACK_WEBHOOK_PREFIX = 'https://hooks.slack.com/'
+const slackTarget = z
+  .string()
+  .trim()
+  .startsWith(SLACK_WEBHOOK_PREFIX, 'Must be a Slack incoming webhook URL (https://hooks.slack.com/…)')
+const emailTarget = z.string().trim().pipe(z.email('Enter a valid email address'))
+
+export const contactCreateSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('slack'),
+    name: contactName,
+    target: slackTarget,
+    isDefault: z.boolean().default(false)
+  }),
+  z.object({
+    type: z.literal('email'),
+    name: contactName,
+    target: emailTarget,
+    isDefault: z.boolean().default(false)
+  })
+])
+export type ContactInput = z.output<typeof contactCreateSchema>
+
+/** Blank/missing target on update = keep the stored one (the UI never receives the full webhook URL). */
+export const contactUpdateSchema = z.object({
+  name: contactName,
+  isDefault: z.boolean(),
+  target: z.string().trim().optional()
+})
+export type ContactUpdate = z.output<typeof contactUpdateSchema>
+
+export const maintenanceSchema = z
+  .object({
+    monitorId: z.string().min(1).nullable(),
+    startsAt: z.number().int().positive(),
+    endsAt: z.number().int().positive(),
+    note: z.string().trim().max(500).default('')
+  })
+  .refine((v) => v.endsAt > v.startsAt, { message: 'End must be after start', path: ['endsAt'] })
+export type MaintenanceInput = z.output<typeof maintenanceSchema>
