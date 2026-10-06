@@ -5,8 +5,13 @@ import { INTERVALS_S, LAUNCH_WATCH, REMINDER_MINS } from '~~/shared/utils/consta
 import { formatInterval } from '~~/shared/utils/format'
 import { monitorInputSchema, type MonitorInput } from '~~/shared/utils/validation'
 
-const props = defineProps<{ initial: MonitorInput; submitLabel: string; isNew?: boolean }>()
-const emit = defineEmits<{ submit: [input: MonitorInput] }>()
+const props = defineProps<{
+  initial: MonitorInput
+  submitLabel: string
+  isNew?: boolean
+  /** Awaited; the submit button stays disabled until it settles, so a double-click can't save twice. */
+  save: (input: MonitorInput) => Promise<void>
+}>()
 
 const state = reactive<MonitorInput>({ ...props.initial, contactIds: [...props.initial.contactIds] })
 const saving = ref(false)
@@ -71,9 +76,10 @@ async function testUrl() {
 }
 
 async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
+  if (saving.value) return
   saving.value = true
   try {
-    emit('submit', e.data)
+    await props.save(e.data)
   } finally {
     saving.value = false
   }
@@ -154,7 +160,7 @@ async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
 
     <div class="flex justify-end gap-2">
       <UButton variant="ghost" color="neutral" @click="$router.back()">Cancel</UButton>
-      <UButton type="submit" :loading="saving">{{ submitLabel }}</UButton>
+      <UButton type="submit" :loading="saving" :disabled="saving">{{ submitLabel }}</UButton>
     </div>
   </UForm>
 </template>

@@ -18,7 +18,7 @@ async function create(input: MonitorInput) {
   <div class="mx-auto max-w-2xl space-y-4">
     <h1 class="text-xl font-semibold">Add monitor</h1>
     <UCard>
-      <MonitorForm :initial="initial" submit-label="Add monitor" is-new @submit="create" />
+      <MonitorForm :initial="initial" submit-label="Add monitor" is-new :save="create" />
     </UCard>
   </div>
 </template>

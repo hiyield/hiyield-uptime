@@ -60,7 +60,7 @@ async function remove() {
         <UButton color="error" variant="ghost" icon="i-lucide-trash-2" @click="openDelete">Delete</UButton>
       </div>
       <UCard>
-        <MonitorForm :initial="initial" submit-label="Save changes" @submit="save" />
+        <MonitorForm :initial="initial" submit-label="Save changes" :save="save" />
       </UCard>
     </template>
 
