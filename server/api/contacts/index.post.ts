@@ -1,7 +1,7 @@
 import * as schema from '../../db/schema'
 
 export default defineEventHandler(async (event) => {
-  const input = await readValidatedBody(event, contactCreateSchema.parse)
+  const input = await validateBody(event, contactCreateSchema)
   const id = crypto.randomUUID()
   await useDb(event)
     .insert(schema.contacts)

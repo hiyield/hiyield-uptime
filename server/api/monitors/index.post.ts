@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const input = await readValidatedBody(event, monitorInputSchema.parse)
+  const input = await validateBody(event, monitorInputSchema)
   const db = useDb(event)
   const id = crypto.randomUUID()
   await createMonitor(db, input, Date.now(), id)

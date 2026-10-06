@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export default defineEventHandler(async (event) => {
-  const { text } = await readValidatedBody(event, z.object({ text: z.string().max(50_000) }).parse)
+  const { text } = await validateBody(event, z.object({ text: z.string().max(50_000) }))
   const rows = parseBulk(text)
   if (rows.length === 0 || rows.some((r) => r.error)) {
     throw createError({ statusCode: 400, statusMessage: 'Fix the highlighted lines', data: { rows } })

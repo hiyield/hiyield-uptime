@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import * as schema from '../../db/schema'
 
 export default defineEventHandler(async (event) => {
-  const input = await readValidatedBody(event, maintenanceSchema.parse)
+  const input = await validateBody(event, maintenanceSchema)
   const db = useDb(event)
   if (input.monitorId) {
     const monitor = await db.query.monitors.findFirst({ where: eq(schema.monitors.id, input.monitorId) })
