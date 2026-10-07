@@ -1,1 +1,1 @@
-export default defineEventHandler(async (event) => ({ monitors: await listBoard(useDb(event), Date.now()) }))
+export default defineEventHandler(async (event) => getBoard(useDb(event), Date.now()))

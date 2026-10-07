@@ -1,15 +1,14 @@
 import { and, desc, eq, gt, gte, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm'
 import * as schema from '../db/schema'
 import { STATUS_SORT, type MonitorStatus } from '../../shared/utils/status'
+import { boardCharts, type BoardSummary, type MonitorCharts } from './boardCharts'
+import { uptimePercent } from './uptime'
 import type { Db } from './db'
 
 export const DAY = 86_400_000
 const c = schema.checks
 
-export function uptimePercent(total: number, failures: number): number | null {
-  if (total === 0) return null
-  return Math.round(((total - failures) / total) * 10_000) / 100
-}
+export { uptimePercent }
 
 const counted = (since: number) =>
   and(gte(c.checkedAt, since), eq(c.region, 'primary'), eq(c.maintenance, false))
@@ -79,9 +78,13 @@ async function activeMaintenance(db: Db, now: number): Promise<{ global: boolean
   }
 }
 
-export async function listBoard(db: Db, now: number): Promise<BoardRow[]> {
+export async function listBoard(
+  db: Db,
+  now: number,
+  { withUptime = true }: { withUptime?: boolean } = {}
+): Promise<BoardRow[]> {
   const monitors = await db.select().from(schema.monitors)
-  const uptime = await uptimeByMonitor(db, now - DAY)
+  const uptime = withUptime ? await uptimeByMonitor(db, now - DAY) : new Map<string, number | null>()
   const open = await db
     .select({
       monitorId: schema.incidents.monitorId,
@@ -109,6 +112,28 @@ export async function listBoard(db: Db, now: number): Promise<BoardRow[]> {
       inMaintenance: maint.global || maint.monitors.has(m.id)
     }))
     .sort((a, b) => STATUS_SORT[a.status] - STATUS_SORT[b.status] || a.name.localeCompare(b.name))
+}
+
+export type BoardRowWithCharts = BoardRow & Omit<MonitorCharts, 'uptime24h'>
+
+/** Board rows plus chart data; per-row 24h uptime comes from rollups (cheap) rather than raw checks. */
+export async function getBoard(
+  db: Db,
+  now: number
+): Promise<{ monitors: BoardRowWithCharts[]; summary: BoardSummary }> {
+  const rows = await listBoard(db, now, { withUptime: false })
+  const { perMonitor, summary } = await boardCharts(
+    db,
+    rows.map((r) => r.id),
+    now
+  )
+  return {
+    monitors: rows.map((r) => {
+      const mc = perMonitor.get(r.id)!
+      return { ...r, uptime24h: mc.uptime24h, bars: mc.bars, barStats: mc.barStats, spark: mc.spark }
+    }),
+    summary: { downNow: rows.filter((r) => r.status === 'down').length, ...summary }
+  }
 }
 
 export function findStaleMonitors(

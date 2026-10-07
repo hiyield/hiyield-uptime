@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DAY,
   findStaleMonitors,
+  getBoard,
   getHistory,
   listBoard,
   pruneChecks,
@@ -86,6 +87,32 @@ describe('listBoard', () => {
     expect(rows[0]).toMatchObject({ downSince: T0 - 600_000, inMaintenance: true })
     expect(rows[1]).toMatchObject({ uptime24h: 100, downSince: null })
     expect(rows[2]!.id).toBe(paused.id)
+  })
+})
+
+describe('getBoard', () => {
+  it('returns { monitors, summary } with chart arrays and rollup-based uptime24h', async () => {
+    const db = makeDb()
+    const up = await seedMonitor(db, { name: 'A up', status: 'up' })
+    const down = await seedMonitor(db, { name: 'Z down', status: 'down' })
+    const paused = await seedMonitor(db, { name: 'B paused', status: 'paused', paused: true })
+    const bucket = Math.floor(T0 / 1_800_000) * 1_800_000
+    await db
+      .insert(schema.rollup30m)
+      .values({ monitorId: up.id, bucketStart: bucket, checks: 4, failures: 1 })
+    const { monitors, summary } = await getBoard(db, T0)
+    expect(monitors.map((m) => m.name)).toEqual(['Z down', 'A up', 'B paused'])
+    expect(monitors[0]!.id).toBe(down.id)
+    expect(summary.downNow).toBe(1)
+    for (const m of monitors) {
+      expect(m.bars).toHaveLength(48)
+      expect(m.barStats).toHaveLength(48)
+      expect(m.spark).toHaveLength(48)
+    }
+    const upRow = monitors.find((m) => m.id === up.id)!
+    expect(upRow.uptime24h).toBe(75)
+    const pausedRow = monitors.find((m) => m.id === paused.id)!
+    expect(pausedRow.id).toBe(paused.id)
   })
 })
 
