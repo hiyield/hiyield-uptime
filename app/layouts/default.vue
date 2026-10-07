@@ -5,6 +5,7 @@ const { user } = useSessionUser()
 const route = useRoute()
 const links = [
   { label: 'Status', to: '/', icon: 'i-lucide-activity' },
+  { label: 'Insights', to: '/insights', icon: 'i-lucide-chart-column' },
   { label: 'Contacts', to: '/contacts', icon: 'i-lucide-bell' },
   { label: 'Maintenance', to: '/maintenance', icon: 'i-lucide-wrench' }
 ]
