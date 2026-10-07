@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+@theme {
+  /* Arial/Helvetica is the brand body fallback for Area Normal (which isn't licensed here). */
+  --font-sans: Arial, Helvetica, sans-serif;
+  /* Athletics is the brand display face; Arial Black is the closest system fallback while the
+     real font file isn't present (see public/brand/ and the README "Brand assets" note). */
+  --font-heading: 'Athletics', 'Arial Black', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Hiyield brand — Forest Green (primary: header, CTAs, headings) */
+  --color-forest-50: #ebf7f7;
+  --color-forest-100: #d5eded;
+  --color-forest-200: #9fd4d4;
+  --color-forest-300: #6eb8b8;
+  --color-forest-400: #288585;
+  --color-forest-500: #005050;
+  --color-forest-600: #004444;
+  --color-forest-700: #003b34;
+  --color-forest-800: #003027;
+  --color-forest-900: #00241a;
+  --color-forest-950: #00170f;
+
+  /* Hiyield brand — Electric Green (accent: success, small chips, primary CTA fills) */
+  --color-electric-50: #f2fffc;
+  --color-electric-100: #e6fffa;
+  --color-electric-200: #bffff0;
+  --color-electric-300: #97fce3;
+  --color-electric-400: #4cfcc4;
+  --color-electric-500: #00faa0;
+  --color-electric-600: #00e087;
+  --color-electric-700: #00ba66;
+  --color-electric-800: #00964b;
+  --color-electric-900: #007034;
+  --color-electric-950: #00471e;
+
+  /* Forest-tinted neutral (replaces slate) — cool-green greys ending at brand black */
+  --color-ink-50: #f6f8f8;
+  --color-ink-100: #eef1f1;
+  --color-ink-200: #dde3e3;
+  --color-ink-300: #c3cccc;
+  --color-ink-400: #94a1a1;
+  --color-ink-500: #667575;
+  --color-ink-600: #4b5959;
+  --color-ink-700: #354242;
+  --color-ink-800: #1f2b2b;
+  --color-ink-900: #0f1d1d;
+  --color-ink-950: #001313;
+}
+
+/* The file isn't in the repo yet — drop it into public/brand/ (see README) to pick this up.
+   Until then every `font-heading` usage falls back to Arial Black, which renders fine; the
+   browser just 404s this request once. */
+@font-face {
+  font-family: 'Athletics';
+  src: url('/brand/Athletics-ExtraBold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Wall-board theme — the app is forced dark (see nuxt.config.ts colorMode), so `.dark` is always
+   on <html>. These override @nuxt/ui's own `@layer theme` dark variables (plain rules beat
+   layered ones, so no extra specificity/!important is needed) with the brand-black surfaces from
+   the approved dark revision. Names/defaults confirmed against
+   node_modules/@nuxt/ui/dist/runtime/index.css. */
+.dark {
+  --ui-bg: #001313;
+  --ui-bg-muted: #062222;
+  --ui-bg-elevated: #0a2a2a;
+  --ui-bg-accented: #123838;
+
+  --ui-border: #163636;
+  --ui-border-muted: #163636;
+  --ui-border-accented: #1f4545;
+
+  --ui-text: #f2f7f7;
+  --ui-text-toned: rgba(255, 255, 255, 0.8);
+  --ui-text-muted: rgba(255, 255, 255, 0.6);
+  --ui-text-dimmed: rgba(255, 255, 255, 0.45);
+  --ui-text-highlighted: #ffffff;
+}
+
+html,
+body {
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+}

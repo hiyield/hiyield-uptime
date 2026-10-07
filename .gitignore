@@ -1,0 +1,15 @@
+node_modules
+*.log
+.env
+.env.local
+.env.*.local
+.nuxt
+.output
+.nitro
+.cache
+.wrangler
+worker-configuration.d.ts
+.vscode
+.idea
+.DS_Store
+.claude/settings.local.json

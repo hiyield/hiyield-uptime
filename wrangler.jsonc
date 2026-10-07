@@ -1,0 +1,82 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Single source of truth for Worker config. `nuxt build` emits .output/;
+  // `wrangler deploy --env staging|production` bundles .cloudflare/worker.ts.
+  // Never deploy the top level — it is the `nuxt dev` (Miniflare) config.
+  "name": "hiyield-uptime",
+  "account_id": "292239b76ae1c8af20ccdc119ce003fb",
+  "main": ".cloudflare/worker.ts",
+  "compatibility_date": "2026-08-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "logs": { "enabled": true, "invocation_logs": true } },
+  "assets": { "directory": ".output/public/", "binding": "ASSETS" },
+  "workers_dev": false,
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hiyield-uptime",
+      "database_id": "LOCAL_PLACEHOLDER",
+      "migrations_dir": "server/db/migrations"
+    }
+  ],
+
+  "env": {
+    "staging": {
+      "name": "hiyield-uptime-staging",
+      // Internal tool — workers.dev, no custom domain yet (decided at deploy time).
+      "workers_dev": true,
+      "preview_urls": false,
+      "observability": { "logs": { "enabled": true, "invocation_logs": true } },
+      "triggers": { "crons": ["*/10 * * * *", "0 3 * * *"] },
+      "vars": {
+        "MAIL_FROM": "Hiyield Uptime <uptime@hiyieldwebapps.co.uk>",
+        "PUBLIC_BASE_URL": "https://hiyield-uptime-staging.hiyieldapps.workers.dev",
+        "BETTER_AUTH_URL": "https://hiyield-uptime-staging.hiyieldapps.workers.dev"
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "MONITOR", "class_name": "MonitorDO" },
+          { "name": "PROBE", "class_name": "ProbeDO" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MonitorDO", "ProbeDO"] }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hiyield-uptime-staging",
+          "database_id": "FILL_AFTER_WRANGLER_D1_CREATE",
+          "migrations_dir": "server/db/migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "hiyield-uptime",
+      "workers_dev": true,
+      "preview_urls": false,
+      "observability": { "logs": { "enabled": true, "invocation_logs": true } },
+      "triggers": { "crons": ["*/10 * * * *", "0 3 * * *"] },
+      "vars": {
+        "MAIL_FROM": "Hiyield Uptime <uptime@hiyieldwebapps.co.uk>",
+        "PUBLIC_BASE_URL": "https://hiyield-uptime.hiyieldapps.workers.dev",
+        "BETTER_AUTH_URL": "https://hiyield-uptime.hiyieldapps.workers.dev"
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "MONITOR", "class_name": "MonitorDO" },
+          { "name": "PROBE", "class_name": "ProbeDO" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MonitorDO", "ProbeDO"] }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hiyield-uptime",
+          "database_id": "FILL_AFTER_WRANGLER_D1_CREATE",
+          "migrations_dir": "server/db/migrations"
+        }
+      ]
+    }
+  }
+}
