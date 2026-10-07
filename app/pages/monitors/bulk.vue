@@ -42,8 +42,8 @@ async function submit() {
 <template>
   <div class="mx-auto max-w-4xl space-y-4">
     <div>
-      <h1 class="font-heading text-xl font-extrabold text-forest-500">Bulk add monitors</h1>
-      <p class="text-sm text-ink-500">
+      <h1 class="font-heading text-xl font-extrabold text-highlighted">Bulk add monitors</h1>
+      <p class="text-sm text-muted">
         One site per line as <code class="font-mono">name, url</code>. Blank lines and lines starting with
         <code class="font-mono">#</code> are ignored. New monitors use the default settings (every 5 min,
         alert after 2 failures) and your default contacts — edit any of them afterwards.
@@ -61,13 +61,13 @@ async function submit() {
           <span class="font-mono text-xs">{{ row.original.url }}</span>
         </template>
         <template #result-cell="{ row }">
-          <span v-if="row.original.error" class="text-sm text-red-600">{{ row.original.error }}</span>
-          <UIcon v-else name="i-lucide-check" class="text-emerald-600" />
+          <span v-if="row.original.error" class="text-sm text-red-400">{{ row.original.error }}</span>
+          <UIcon v-else name="i-lucide-check" class="text-electric-400" />
         </template>
       </UTable>
     </UCard>
     <div class="flex items-center justify-end gap-3">
-      <span v-if="errors" class="text-sm text-red-600">{{ errors }} line(s) need fixing</span>
+      <span v-if="errors" class="text-sm text-red-400">{{ errors }} line(s) need fixing</span>
       <UButton :disabled="!rows.length || errors > 0" :loading="submitting" @click="submit">
         Add {{ rows.length }} monitors
       </UButton>

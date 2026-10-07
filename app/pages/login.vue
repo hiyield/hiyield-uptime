@@ -19,11 +19,11 @@ async function signIn() {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center justify-center bg-forest-500 px-4">
+  <div class="flex min-h-screen flex-col items-center justify-center bg-default px-4">
     <div class="w-full max-w-sm space-y-6 text-center">
       <div class="font-heading text-xl font-extrabold text-white">Hiyield</div>
       <h1 class="font-heading text-4xl font-extrabold text-electric-500">Uptime</h1>
-      <p class="text-sm text-white/80">Sign in with your Hiyield Google account.</p>
+      <p class="text-sm text-muted">Sign in with your Hiyield Google account.</p>
       <UAlert v-if="error" color="error" variant="subtle" :title="error" />
       <UButton
         block

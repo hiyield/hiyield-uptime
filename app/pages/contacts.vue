@@ -97,8 +97,8 @@ const columns: TableColumn<ContactListItem>[] = [
   <div class="space-y-4">
     <div class="flex items-end justify-between">
       <div>
-        <h1 class="font-heading text-xl font-extrabold text-forest-500">Contacts</h1>
-        <p class="text-sm text-ink-500">Where alerts go. Default contacts are pre-ticked on new monitors.</p>
+        <h1 class="font-heading text-xl font-extrabold text-highlighted">Contacts</h1>
+        <p class="text-sm text-muted">Where alerts go. Default contacts are pre-ticked on new monitors.</p>
       </div>
       <UButton icon="i-lucide-plus" @click="startCreate">Add contact</UButton>
     </div>
@@ -123,7 +123,7 @@ const columns: TableColumn<ContactListItem>[] = [
           >
             <span>{{ row.original.monitors.length }} site(s)</span>
           </UTooltip>
-          <span v-else class="text-ink-400">No sites</span>
+          <span v-else class="text-dimmed">No sites</span>
         </template>
         <template #last-cell="{ row }">
           <template v-if="row.original.lastDelivery">
@@ -131,9 +131,9 @@ const columns: TableColumn<ContactListItem>[] = [
             <UTooltip v-else :text="row.original.lastDelivery.error ?? ''">
               <UBadge color="error" variant="subtle">Failed</UBadge>
             </UTooltip>
-            <span class="ml-1 text-xs text-ink-400">{{ formatDateTime(row.original.lastDelivery.at) }}</span>
+            <span class="ml-1 text-xs text-dimmed">{{ formatDateTime(row.original.lastDelivery.at) }}</span>
           </template>
-          <span v-else class="text-ink-400">—</span>
+          <span v-else class="text-dimmed">—</span>
         </template>
         <template #actions-cell="{ row }">
           <div class="flex justify-end gap-1">
@@ -151,7 +151,7 @@ const columns: TableColumn<ContactListItem>[] = [
           </div>
         </template>
         <template #empty>
-          <div class="py-10 text-center text-sm text-ink-500">
+          <div class="py-10 text-center text-sm text-muted">
             No contacts yet. Add a Slack channel or email.
           </div>
         </template>

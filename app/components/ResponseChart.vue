@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Single-series line chart (dataviz skill: palette.md light-mode tokens — this app is
-// light-only, see nuxt.config.ts colorMode). One series needs no legend; the card
+// Single-series line chart (dataviz skill: palette.md tokens, adapted for the dark wall-board
+// theme — see nuxt.config.ts colorMode, forced dark). One series needs no legend; the card
 // header already names what's plotted. Hover adds a crosshair + tooltip per
 // interaction.md, with the same readout reachable on keyboard focus and via the
 // sr-only table below for anyone who can't use either.
@@ -10,14 +10,14 @@ const W = 640
 const H = 160
 const PAD = { top: 12, right: 12, bottom: 24, left: 48 }
 
-// Brand ink scale (app/assets/css/main.css --color-ink-*) for chart chrome; the line itself is
-// brand forest-500, in place of the dataviz-skill default categorical blue.
-const INK_SECONDARY = '#354242' // ink-700
-const INK_MUTED = '#94a1a1' // ink-400
-const GRIDLINE = '#dde3e3' // ink-200
-const BASELINE = '#c3cccc' // ink-300
-const SURFACE = '#fcfcfb'
-const SERIES = '#005050' // forest-500
+// Dark wall-board chrome (app/assets/css/main.css --ui-border/--ui-text-* overrides); the line,
+// end dot and crosshair are brand electric-500, in place of the dataviz-skill default blue.
+const AXIS_LABEL = 'rgba(255, 255, 255, 0.6)' // muted white — ticks + from/to labels
+const VALUE_LABEL = '#ffffff' // highlighted white — last-value overlay label
+const GRIDLINE = '#163636' // --ui-border
+const SURFACE = '#0a2a2a' // --ui-bg-elevated (tooltip surface)
+const BORDER = '#1f4545' // --ui-border-accented (tooltip border)
+const SERIES = '#00faa0' // electric-500
 
 const maxMs = computed(() => Math.max(100, ...props.points.map((p) => p.avgMs)) * 1.1)
 const x = (t: number) => PAD.left + ((t - props.from) / (props.to - props.from)) * (W - PAD.left - PAD.right)
@@ -160,7 +160,8 @@ function onKeydown(e: KeyboardEvent) {
           :x2="x(hovered.t)"
           :y1="PAD.top"
           :y2="H - PAD.bottom"
-          :stroke="BASELINE"
+          :stroke="SERIES"
+          stroke-opacity="0.4"
           stroke-width="1"
           vector-effect="non-scaling-stroke"
         />
@@ -175,9 +176,7 @@ function onKeydown(e: KeyboardEvent) {
         />
       </template>
     </svg>
-    <div v-else class="flex h-full items-center justify-center text-sm text-[#94a1a1]">
-      Not enough data yet
-    </div>
+    <div v-else class="flex h-full items-center justify-center text-sm text-dimmed">Not enough data yet</div>
 
     <template v-if="points.length > 1">
       <div
@@ -188,7 +187,7 @@ function onKeydown(e: KeyboardEvent) {
           left: `calc(${pctX(PAD.left)}% - 6px)`,
           top: `${pctY(y(tick))}%`,
           transform: 'translate(-100%, -50%)',
-          color: INK_MUTED
+          color: AXIS_LABEL
         }"
       >
         {{ tick }}ms
@@ -201,7 +200,7 @@ function onKeydown(e: KeyboardEvent) {
           left: `calc(${pctX(x(last.t))}% - 8px)`,
           top: `${pctY(y(last.avgMs))}%`,
           transform: 'translate(-100%, calc(-100% - 6px))',
-          color: INK_SECONDARY
+          color: VALUE_LABEL
         }"
       >
         {{ last.avgMs }}ms
@@ -213,7 +212,7 @@ function onKeydown(e: KeyboardEvent) {
           left: `${pctX(PAD.left)}%`,
           top: `${pctY(H - 4)}%`,
           transform: 'translate(0, -50%)',
-          color: INK_MUTED
+          color: AXIS_LABEL
         }"
       >
         {{ label(from) }}
@@ -224,7 +223,7 @@ function onKeydown(e: KeyboardEvent) {
           left: `${pctX(W - PAD.right)}%`,
           top: `${pctY(H - 4)}%`,
           transform: 'translate(-100%, -50%)',
-          color: INK_MUTED
+          color: AXIS_LABEL
         }"
       >
         {{ label(to) }}
@@ -233,14 +232,14 @@ function onKeydown(e: KeyboardEvent) {
 
     <div
       v-if="hovered"
-      class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-black/10 bg-[#fcfcfb] px-2 py-1 text-xs whitespace-nowrap shadow-sm"
-      :style="tooltipStyle"
+      class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-sm"
+      :style="{ ...tooltipStyle, backgroundColor: SURFACE, borderColor: BORDER }"
     >
       <div class="flex items-center gap-1.5">
         <span class="inline-block h-0.5 w-2.5 rounded-full" :style="{ backgroundColor: SERIES }" />
-        <span class="font-mono font-semibold text-[#001313]">{{ hovered.avgMs }}ms</span>
+        <span class="font-mono font-semibold text-white">{{ hovered.avgMs }}ms</span>
       </div>
-      <div class="text-[#354242]">{{ formatDateTime(hovered.t) }}</div>
+      <div class="text-white/60">{{ formatDateTime(hovered.t) }}</div>
     </div>
 
     <table v-if="points.length > 1" class="sr-only">

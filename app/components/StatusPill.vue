@@ -3,17 +3,22 @@ import { displayStatus, type MonitorStatus } from '~~/shared/utils/status'
 
 const props = defineProps<{ status: MonitorStatus; inMaintenance?: boolean }>()
 const display = computed(() => displayStatus(props.status, props.inMaintenance ?? false))
-// Nuxt UI's subtle `success` badge puts electric-500 text on a light electric background —
-// the brand accent is a bright mint meant for fills/chips, not body text, so it reads poorly.
-// Override just the "Up" chip with brand-forest text; every other status keeps its semantic colour.
+// Wall-board is always dark: override the "Up" and "Down" chips with explicit brand colours so
+// they read as bright mint / vivid red on near-black. Suspect (amber), Maintenance (sky) and
+// Paused/Pending (neutral) already look right from Nuxt UI's own dark `subtle` variant.
 const isUp = computed(() => display.value.color === 'success')
+const isDown = computed(() => display.value.color === 'error')
 </script>
 
 <template>
   <UBadge
     :color="display.color"
     variant="subtle"
-    :class="['font-medium', isUp ? 'bg-electric-100 text-forest-800 ring-electric-300' : '']"
+    :class="[
+      'font-medium',
+      isUp ? 'bg-electric-500/15 text-electric-400 ring-electric-500/30' : '',
+      isDown ? 'bg-red-500/15 text-red-400 ring-red-500/30' : ''
+    ]"
   >
     {{ display.label }}
   </UBadge>

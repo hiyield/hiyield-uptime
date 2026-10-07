@@ -80,8 +80,8 @@ const columns: TableColumn<MaintenanceListItem>[] = [
 <template>
   <div class="space-y-4">
     <div>
-      <h1 class="font-heading text-xl font-extrabold text-forest-500">Maintenance</h1>
-      <p class="text-sm text-ink-500">
+      <h1 class="font-heading text-xl font-extrabold text-highlighted">Maintenance</h1>
+      <p class="text-sm text-muted">
         Checks keep running during a window but no alerts are sent and it doesn't count against uptime.
       </p>
     </div>
@@ -126,7 +126,7 @@ const columns: TableColumn<MaintenanceListItem>[] = [
           />
         </template>
         <template #empty
-          ><div class="py-8 text-center text-sm text-ink-400">No maintenance windows</div></template
+          ><div class="py-8 text-center text-sm text-dimmed">No maintenance windows</div></template
         >
       </UTable>
     </UCard>

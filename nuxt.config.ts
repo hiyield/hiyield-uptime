@@ -15,10 +15,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Light only — status colours carry the meaning; one palette is enough for an internal tool.
+  // Dark only — a wall-board status screen lives on a TV/monitor, so it's permanently dark with
+  // no toggle. `ui.colorMode` left at its default (true) so @nuxt/ui wires up @nuxtjs/color-mode
+  // and applies its `.dark` variants; `preference`/`fallback` both pin it to dark.
   // @ts-expect-error provided by @nuxtjs/color-mode via @nuxt/ui
-  colorMode: { preference: 'light', fallback: 'light', classSuffix: '' },
-  ui: { colorMode: false },
+  colorMode: { preference: 'dark', fallback: 'dark', classSuffix: '' },
 
   app: {
     head: {

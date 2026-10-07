@@ -72,11 +72,11 @@ const columns: TableColumn<BoardRow>[] = [
   <div class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="font-heading text-xl font-extrabold text-forest-500">Status</h1>
-        <p v-if="loaded" class="text-sm text-ink-500">
-          <span :class="counts.down ? 'font-medium text-red-600' : ''">{{ counts.down }} down</span>
+        <h1 class="font-heading text-xl font-extrabold text-highlighted">Status</h1>
+        <p v-if="loaded" class="text-sm text-muted">
+          <span :class="counts.down ? 'font-medium text-red-400' : ''">{{ counts.down }} down</span>
           · {{ counts.up }} up · {{ counts.paused }} paused
-          <span v-if="lastUpdatedLabel" class="text-ink-400"> · Last updated {{ lastUpdatedLabel }}</span>
+          <span v-if="lastUpdatedLabel" class="text-dimmed"> · Last updated {{ lastUpdatedLabel }}</span>
         </p>
       </div>
       <div class="flex gap-2">
@@ -118,11 +118,11 @@ const columns: TableColumn<BoardRow>[] = [
           <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">
             {{ row.original.name }}
           </NuxtLink>
-          <div class="font-mono text-xs text-ink-500">{{ row.original.url }}</div>
+          <div class="font-mono text-xs text-muted">{{ row.original.url }}</div>
         </template>
         <template #lastCheck-cell="{ row }">
           <div>{{ ago(row.original.lastCheckedAt) }}</div>
-          <div class="text-xs text-ink-400">every {{ formatInterval(row.original.intervalS) }}</div>
+          <div class="text-xs text-dimmed">every {{ formatInterval(row.original.intervalS) }}</div>
         </template>
         <template #response-cell="{ row }">
           <span class="font-mono">
@@ -130,24 +130,24 @@ const columns: TableColumn<BoardRow>[] = [
           </span>
         </template>
         <template #uptime-cell="{ row }">
-          <span class="font-mono">{{
+          <span class="font-mono text-electric-500">{{
             row.original.uptime24h != null ? `${row.original.uptime24h}%` : '—'
           }}</span>
         </template>
         <template #downFor-cell="{ row }">
-          <span v-if="row.original.downSince" class="font-mono text-red-600">
+          <span v-if="row.original.downSince" class="font-mono text-red-400">
             {{ formatDuration(now.getTime() - row.original.downSince) }}
           </span>
-          <span v-else class="text-ink-400">—</span>
+          <span v-else class="text-dimmed">—</span>
         </template>
         <template #empty>
-          <div v-if="!loaded" class="py-10 text-center text-sm text-ink-500">
+          <div v-if="!loaded" class="py-10 text-center text-sm text-muted">
             {{ error ? 'Monitors unavailable.' : 'Loading…' }}
           </div>
-          <div v-else-if="monitors.length" class="py-10 text-center text-sm text-ink-500">
+          <div v-else-if="monitors.length" class="py-10 text-center text-sm text-muted">
             No monitors match.
           </div>
-          <div v-else class="py-10 text-center text-sm text-ink-500">
+          <div v-else class="py-10 text-center text-sm text-muted">
             No monitors yet.
             <NuxtLink to="/monitors/new" class="underline">Add one</NuxtLink>
             or
