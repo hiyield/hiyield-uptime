@@ -14,6 +14,14 @@ const props = withDefaults(
 )
 const max = computed(() => Math.max(0, ...props.periods.map((p) => p.value)))
 const hover = ref<number | null>(null)
+// Range changes (e.g. 53 periods -> 7) can leave a stale hovered index pointing past the new
+// array end; clear it so the tooltip never reads an out-of-range period.
+watch(
+  () => props.periods.length,
+  () => {
+    hover.value = null
+  }
+)
 const firstLabel = computed(() =>
   props.periods[0] ? formatBucketTime(props.periods[0].start, 86_400_000) : ''
 )
@@ -62,7 +70,7 @@ const lastLabel = computed(() => {
       <span>{{ lastLabel }}</span>
     </div>
     <div
-      v-if="hover != null"
+      v-if="hover != null && hover < periods.length"
       class="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-accented bg-elevated px-2 py-1 text-xs text-highlighted"
       :style="{ left: `${((hover + 0.5) / periods.length) * 100}%` }"
     >

@@ -41,7 +41,8 @@ const incidentBars = computed(() =>
 )
 const formatCount = (v: number) => String(v)
 const downtimeTip = (i: number) => {
-  const p = data.value!.periods[i]!
+  const p = data.value?.periods[i]
+  if (!p) return []
   return [
     fmtDate(p),
     `Downtime ${dur(p.downtimeMs)} · ${p.incidents} incident${p.incidents === 1 ? '' : 's'}`,
@@ -49,7 +50,8 @@ const downtimeTip = (i: number) => {
   ]
 }
 const incidentTip = (i: number) => {
-  const p = data.value!.periods[i]!
+  const p = data.value?.periods[i]
+  if (!p) return []
   return [fmtDate(p), `${p.incidents} incident${p.incidents === 1 ? '' : 's'} started`]
 }
 
@@ -199,6 +201,11 @@ const slowColumns: TableColumn<SlowRow>[] = [
             empty="No downtime in this period."
           />
           <UTable v-else :data="data.worst" :columns="worstColumns">
+            <template #name-cell="{ row }">
+              <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
+                row.original.name
+              }}</NuxtLink>
+            </template>
             <template #dt-cell="{ row }">{{ dur(row.original.downtimeMs) }}</template>
             <template #up-cell="{ row }">{{ pct(row.original.uptime) }}</template>
           </UTable>
@@ -221,7 +228,13 @@ const slowColumns: TableColumn<SlowRow>[] = [
             :format="formatMs"
             empty="No response data in this period."
           />
-          <UTable v-else :data="data.slowest" :columns="slowColumns" />
+          <UTable v-else :data="data.slowest" :columns="slowColumns">
+            <template #name-cell="{ row }">
+              <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
+                row.original.name
+              }}</NuxtLink>
+            </template>
+          </UTable>
         </UCard>
       </div>
     </template>
