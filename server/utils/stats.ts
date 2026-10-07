@@ -8,8 +8,6 @@ import type { Db } from './db'
 export const DAY = 86_400_000
 const c = schema.checks
 
-export { uptimePercent }
-
 const counted = (since: number) =>
   and(gte(c.checkedAt, since), eq(c.region, 'primary'), eq(c.maintenance, false))
 const totalSql = sql<number>`count(*)`

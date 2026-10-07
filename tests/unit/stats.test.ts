@@ -8,9 +8,9 @@ import {
   pruneChecks,
   responseSeries,
   uptimeByMonitor,
-  uptimeFor,
-  uptimePercent
+  uptimeFor
 } from '../../server/utils/stats'
+import { uptimePercent } from '../../server/utils/uptime'
 import { makeDb, seedContact, seedMonitor, schema, T0 } from './_db'
 import type { Db } from '../../server/utils/db'
 
