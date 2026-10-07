@@ -1,21 +1,29 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { BoardRow } from '~~/server/utils/stats'
+import type { BoardRow, BoardRowWithCharts } from '~~/server/utils/stats'
+import type { BoardSummary } from '~~/server/utils/boardCharts'
 import { formatDuration, formatInterval } from '~~/shared/utils/format'
 
 const lastUpdated = ref<number | null>(null)
-const { data, error, refresh } = await useFetch<{ monitors: BoardRow[] }>('/api/monitors', {
-  onResponse({ response }) {
-    if (response.ok) lastUpdated.value = Date.now()
+const { data, error, refresh } = await useFetch<{ monitors: BoardRowWithCharts[]; summary: BoardSummary }>(
+  '/api/monitors',
+  {
+    onResponse({ response }) {
+      if (response.ok) lastUpdated.value = Date.now()
+    }
   }
-})
+)
 useIntervalFn(() => refresh(), 15_000)
 // Keep showing the last good board if a refresh fails (wall board: never flash "no monitors").
-const lastGood = ref<BoardRow[] | null>(null)
+const lastGood = ref<BoardRowWithCharts[] | null>(null)
+const lastSummary = ref<BoardSummary | null>(null)
 watch(
   data,
   (v) => {
-    if (v) lastGood.value = v.monitors
+    if (v) {
+      lastGood.value = v.monitors
+      lastSummary.value = v.summary
+    }
   },
   { immediate: true }
 )
@@ -39,6 +47,15 @@ const filterItems: { label: string; value: Filter }[] = [
 const monitors = computed(() => lastGood.value ?? [])
 const isDown = (m: BoardRow) => m.status === 'down' || m.status === 'suspect'
 const isUp = (m: BoardRow) => m.status === 'up' || m.status === 'unknown'
+
+const pct = (v: number | null) => (v == null ? '—' : `${v}%`)
+const ms = (v: number | null) => (v == null ? '—' : `${v} ms`)
+const incidentDelta = computed(() => {
+  const s = lastSummary.value
+  if (!s) return undefined
+  const d = s.incidents7d - s.incidentsPrev7d
+  return d === 0 ? 'same as previous 7 days' : `${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs previous 7 days`
+})
 const counts = computed(() => ({
   down: monitors.value.filter(isDown).length,
   up: monitors.value.filter(isUp).length,
@@ -58,11 +75,12 @@ const rows = computed(() =>
 
 const ago = (t: number | null) => (t ? `${formatDuration(now.value.getTime() - t)} ago` : '—')
 
-const columns: TableColumn<BoardRow>[] = [
+const columns: TableColumn<BoardRowWithCharts>[] = [
   { id: 'status', header: 'Status' },
   { accessorKey: 'name', header: 'Site' },
+  { id: 'last24h', header: 'Last 24h' },
   { id: 'lastCheck', header: 'Last check' },
-  { id: 'response', header: 'Response' },
+  { id: 'response', header: 'Response 24h' },
   { id: 'uptime', header: '24h uptime' },
   { id: 'downFor', header: 'Down for' }
 ]
@@ -89,6 +107,48 @@ const columns: TableColumn<BoardRow>[] = [
           Add monitor
         </UButton>
       </div>
+    </div>
+
+    <div v-if="lastSummary" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <ChartsStatTile
+        label="Down now"
+        :value="String(lastSummary.downNow)"
+        :tone="lastSummary.downNow > 0 ? 'danger' : 'default'"
+        :sub="lastSummary.downNow > 0 ? 'sites currently down' : 'all monitored sites up'"
+      />
+      <ChartsStatTile label="Uptime 24h" :value="pct(lastSummary.uptime24h)">
+        <ChartsSparkline
+          :values="lastSummary.series.uptime24h"
+          :times="lastSummary.series.buckets"
+          :format="(v) => `${v}%`"
+          label="Fleet uptime per half-hour, last 24 hours"
+        />
+      </ChartsStatTile>
+      <ChartsStatTile label="Uptime 30d" :value="pct(lastSummary.uptime30d)">
+        <ChartsSparkline
+          :values="lastSummary.series.uptime30d"
+          :times="lastSummary.series.days30"
+          :format="(v) => `${v}%`"
+          label="Fleet uptime per day, last 30 days"
+        />
+      </ChartsStatTile>
+      <ChartsStatTile label="Incidents 7d" :value="String(lastSummary.incidents7d)" :sub="incidentDelta">
+        <ChartsSparkline
+          kind="bars"
+          :values="lastSummary.series.incidents14d"
+          :times="lastSummary.series.days14"
+          :format="(v) => `${v} incident${v === 1 ? '' : 's'}`"
+          label="Incidents per day, last 14 days"
+        />
+      </ChartsStatTile>
+      <ChartsStatTile label="Avg response 24h" :value="ms(lastSummary.avgResponse24h)">
+        <ChartsSparkline
+          :values="lastSummary.series.response24h"
+          :times="lastSummary.series.buckets"
+          :format="(v) => `${v} ms`"
+          label="Average response time per half-hour, last 24 hours"
+        />
+      </ChartsStatTile>
     </div>
 
     <UAlert
@@ -120,14 +180,30 @@ const columns: TableColumn<BoardRow>[] = [
           </NuxtLink>
           <div class="font-mono text-xs text-muted">{{ row.original.url }}</div>
         </template>
+        <template #last24h-cell="{ row }">
+          <ChartsUptimeBar
+            :states="row.original.bars"
+            :stats="row.original.barStats"
+            :starts="lastSummary?.series.buckets ?? []"
+          />
+        </template>
         <template #lastCheck-cell="{ row }">
           <div>{{ ago(row.original.lastCheckedAt) }}</div>
           <div class="text-xs text-dimmed">every {{ formatInterval(row.original.intervalS) }}</div>
         </template>
         <template #response-cell="{ row }">
-          <span class="font-mono">
-            {{ row.original.lastResponseMs != null ? `${row.original.lastResponseMs} ms` : '—' }}
-          </span>
+          <div class="flex items-center gap-2">
+            <ChartsSparkline
+              class="w-28"
+              :values="row.original.spark"
+              :times="lastSummary?.series.buckets ?? []"
+              :format="(v) => `${v} ms`"
+              :label="`${row.original.name} average response, last 24 hours`"
+            />
+            <span class="font-mono text-xs">{{
+              row.original.lastResponseMs != null ? `${row.original.lastResponseMs} ms` : '—'
+            }}</span>
+          </div>
         </template>
         <template #uptime-cell="{ row }">
           <span class="font-mono text-electric-500">{{
