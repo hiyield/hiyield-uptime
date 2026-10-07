@@ -10,13 +10,14 @@ const W = 640
 const H = 160
 const PAD = { top: 12, right: 12, bottom: 24, left: 48 }
 
-// palette.md — light-mode chart chrome & categorical slot 1 (blue)
-const INK_SECONDARY = '#52514e'
-const INK_MUTED = '#898781'
-const GRIDLINE = '#e1e0d9'
-const BASELINE = '#c3c2b7'
+// Brand ink scale (app/assets/css/main.css --color-ink-*) for chart chrome; the line itself is
+// brand forest-500, in place of the dataviz-skill default categorical blue.
+const INK_SECONDARY = '#354242' // ink-700
+const INK_MUTED = '#94a1a1' // ink-400
+const GRIDLINE = '#dde3e3' // ink-200
+const BASELINE = '#c3cccc' // ink-300
 const SURFACE = '#fcfcfb'
-const SERIES = '#2a78d6'
+const SERIES = '#005050' // forest-500
 
 const maxMs = computed(() => Math.max(100, ...props.points.map((p) => p.avgMs)) * 1.1)
 const x = (t: number) => PAD.left + ((t - props.from) / (props.to - props.from)) * (W - PAD.left - PAD.right)
@@ -174,7 +175,7 @@ function onKeydown(e: KeyboardEvent) {
         />
       </template>
     </svg>
-    <div v-else class="flex h-full items-center justify-center text-sm text-[#898781]">
+    <div v-else class="flex h-full items-center justify-center text-sm text-[#94a1a1]">
       Not enough data yet
     </div>
 
@@ -237,9 +238,9 @@ function onKeydown(e: KeyboardEvent) {
     >
       <div class="flex items-center gap-1.5">
         <span class="inline-block h-0.5 w-2.5 rounded-full" :style="{ backgroundColor: SERIES }" />
-        <span class="font-mono font-semibold text-[#0b0b0b]">{{ hovered.avgMs }}ms</span>
+        <span class="font-mono font-semibold text-[#001313]">{{ hovered.avgMs }}ms</span>
       </div>
-      <div class="text-[#52514e]">{{ formatDateTime(hovered.t) }}</div>
+      <div class="text-[#354242]">{{ formatDateTime(hovered.t) }}</div>
     </div>
 
     <table v-if="points.length > 1" class="sr-only">

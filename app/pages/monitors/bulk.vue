@@ -42,8 +42,8 @@ async function submit() {
 <template>
   <div class="mx-auto max-w-4xl space-y-4">
     <div>
-      <h1 class="text-xl font-semibold">Bulk add monitors</h1>
-      <p class="text-sm text-slate-500">
+      <h1 class="font-heading text-xl font-extrabold text-forest-500">Bulk add monitors</h1>
+      <p class="text-sm text-ink-500">
         One site per line as <code class="font-mono">name, url</code>. Blank lines and lines starting with
         <code class="font-mono">#</code> are ignored. New monitors use the default settings (every 5 min,
         alert after 2 failures) and your default contacts — edit any of them afterwards.

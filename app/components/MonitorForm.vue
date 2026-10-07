@@ -111,10 +111,10 @@ async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
       "
     />
 
-    <div class="flex items-center justify-between gap-4 rounded-md border border-slate-200 bg-white p-3">
+    <div class="flex items-center justify-between gap-4 rounded-md border border-ink-200 bg-white p-3">
       <div>
         <div class="text-sm font-medium">Launch watch</div>
-        <div class="text-xs text-slate-500">
+        <div class="text-xs text-ink-500">
           For newly launched sites: check every minute and alert on the first confirmed failure.
         </div>
       </div>
@@ -150,7 +150,7 @@ async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
           @update:model-value="(v) => toggleContact(c.id, v === true)"
         />
       </div>
-      <p v-else class="text-sm text-slate-500">
+      <p v-else class="text-sm text-ink-500">
         No contacts yet — <NuxtLink to="/contacts" class="underline">add one</NuxtLink> so alerts go
         somewhere.
       </p>
@@ -160,7 +160,14 @@ async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
 
     <div class="flex justify-end gap-2">
       <UButton variant="ghost" color="neutral" @click="$router.back()">Cancel</UButton>
-      <UButton type="submit" :loading="saving" :disabled="saving">{{ submitLabel }}</UButton>
+      <UButton
+        type="submit"
+        :loading="saving"
+        :disabled="saving"
+        :class="isNew ? 'bg-electric-500 text-forest-900 hover:bg-electric-400' : ''"
+      >
+        {{ submitLabel }}
+      </UButton>
     </div>
   </UForm>
 </template>

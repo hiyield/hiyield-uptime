@@ -72,16 +72,22 @@ const columns: TableColumn<BoardRow>[] = [
   <div class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold">Status</h1>
-        <p v-if="loaded" class="text-sm text-slate-500">
+        <h1 class="font-heading text-xl font-extrabold text-forest-500">Status</h1>
+        <p v-if="loaded" class="text-sm text-ink-500">
           <span :class="counts.down ? 'font-medium text-red-600' : ''">{{ counts.down }} down</span>
           · {{ counts.up }} up · {{ counts.paused }} paused
-          <span v-if="lastUpdatedLabel" class="text-slate-400"> · Last updated {{ lastUpdatedLabel }}</span>
+          <span v-if="lastUpdatedLabel" class="text-ink-400"> · Last updated {{ lastUpdatedLabel }}</span>
         </p>
       </div>
       <div class="flex gap-2">
         <UButton to="/monitors/bulk" variant="outline" icon="i-lucide-list-plus">Bulk add</UButton>
-        <UButton to="/monitors/new" icon="i-lucide-plus">Add monitor</UButton>
+        <UButton
+          to="/monitors/new"
+          icon="i-lucide-plus"
+          class="bg-electric-500 text-forest-900 hover:bg-electric-400"
+        >
+          Add monitor
+        </UButton>
       </div>
     </div>
 
@@ -112,11 +118,11 @@ const columns: TableColumn<BoardRow>[] = [
           <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">
             {{ row.original.name }}
           </NuxtLink>
-          <div class="font-mono text-xs text-slate-500">{{ row.original.url }}</div>
+          <div class="font-mono text-xs text-ink-500">{{ row.original.url }}</div>
         </template>
         <template #lastCheck-cell="{ row }">
           <div>{{ ago(row.original.lastCheckedAt) }}</div>
-          <div class="text-xs text-slate-400">every {{ formatInterval(row.original.intervalS) }}</div>
+          <div class="text-xs text-ink-400">every {{ formatInterval(row.original.intervalS) }}</div>
         </template>
         <template #response-cell="{ row }">
           <span class="font-mono">
@@ -132,16 +138,16 @@ const columns: TableColumn<BoardRow>[] = [
           <span v-if="row.original.downSince" class="font-mono text-red-600">
             {{ formatDuration(now.getTime() - row.original.downSince) }}
           </span>
-          <span v-else class="text-slate-400">—</span>
+          <span v-else class="text-ink-400">—</span>
         </template>
         <template #empty>
-          <div v-if="!loaded" class="py-10 text-center text-sm text-slate-500">
+          <div v-if="!loaded" class="py-10 text-center text-sm text-ink-500">
             {{ error ? 'Monitors unavailable.' : 'Loading…' }}
           </div>
-          <div v-else-if="monitors.length" class="py-10 text-center text-sm text-slate-500">
+          <div v-else-if="monitors.length" class="py-10 text-center text-sm text-ink-500">
             No monitors match.
           </div>
-          <div v-else class="py-10 text-center text-sm text-slate-500">
+          <div v-else class="py-10 text-center text-sm text-ink-500">
             No monitors yet.
             <NuxtLink to="/monitors/new" class="underline">Add one</NuxtLink>
             or

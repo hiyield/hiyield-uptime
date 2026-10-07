@@ -72,6 +72,17 @@ After the first deploy:
 
 Custom domain: not set yet. When decided, add a `routes` entry with `custom_domain: true` to the env in `wrangler.jsonc`, update `PUBLIC_BASE_URL` / `BETTER_AUTH_URL`, and add the new Google redirect URI.
 
+## Brand assets
+
+The UI currently renders the Hiyield wordmark as plain styled text and falls back to Arial Black
+for headings. To finish the brand treatment:
+
+- Drop `Athletics-ExtraBold.otf` into `public/brand/` — `app/assets/css/main.css` already declares
+  the `@font-face` for it (weight 800), so it's picked up automatically with no code change.
+- Logo SVGs from the Brand Drive can replace the text wordmark later, e.g.
+  `Hiyield-Logo-Secondary-White-RGB.svg` for the header (`app/layouts/default.vue`) and login page
+  (`app/pages/login.vue`).
+
 ## Dependency pins
 
 - `nuxt` (4.4.6) and `@nuxt/ui` (4.8.0) are pinned exactly because newer versions broke `nuxt typecheck` with this config; revisit when you're confident the type issues are resolved.

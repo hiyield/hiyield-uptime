@@ -56,7 +56,7 @@ async function remove() {
     <UAlert v-if="error" color="error" variant="subtle" title="Monitor not found" />
     <template v-else-if="initial">
       <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">Edit {{ monitor!.name }}</h1>
+        <h1 class="font-heading text-xl font-extrabold text-forest-500">Edit {{ monitor!.name }}</h1>
         <UButton color="error" variant="ghost" icon="i-lucide-trash-2" @click="openDelete">Delete</UButton>
       </div>
       <UCard>

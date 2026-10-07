@@ -98,18 +98,18 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="space-y-1">
           <div class="flex items-center gap-3">
-            <h1 class="text-xl font-semibold">{{ m.name }}</h1>
+            <h1 class="font-heading text-xl font-extrabold text-forest-500">{{ m.name }}</h1>
             <StatusPill :status="m.status" :in-maintenance="inMaintenance" />
           </div>
           <a
             :href="m.url"
             target="_blank"
             rel="noopener"
-            class="font-mono text-sm text-slate-500 hover:underline"
+            class="font-mono text-sm text-ink-500 hover:underline"
           >
             {{ m.url }}
           </a>
-          <p class="text-xs text-slate-400">
+          <p class="text-xs text-ink-400">
             Every {{ formatInterval(m.intervalS) }} · alert after {{ m.failThreshold }} confirmed failure(s) ·
             reminders {{ m.reminderMins ? `every ${m.reminderMins} min` : 'off' }}
           </p>
@@ -145,9 +145,9 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
           v-for="(label, key) in { h24: 'Last 24 hours', d7: 'Last 7 days', d30: 'Last 30 days' }"
           :key="key"
         >
-          <div class="text-xs text-slate-500">{{ label }}</div>
-          <div class="font-mono text-2xl font-semibold">{{ pct(data.uptime[key]) }}</div>
-          <div class="text-xs text-slate-400">uptime</div>
+          <div class="text-xs text-ink-500">{{ label }}</div>
+          <div class="font-heading text-2xl font-extrabold text-forest-500">{{ pct(data.uptime[key]) }}</div>
+          <div class="text-xs text-ink-400">uptime</div>
         </UCard>
       </div>
 
@@ -174,7 +174,7 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
               {{ formatDuration((row.original.resolvedAt ?? now.getTime()) - row.original.startedAt) }}
             </span>
           </template>
-          <template #empty><div class="py-6 text-center text-sm text-slate-400">No incidents</div></template>
+          <template #empty><div class="py-6 text-center text-sm text-ink-400">No incidents</div></template>
         </UTable>
       </UCard>
 
@@ -189,7 +189,7 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
             >
               {{ row.original.ok ? 'Up' : row.original.confirmed ? 'Down' : 'Blip' }}
             </UBadge>
-            <span v-if="row.original.maintenance" class="ml-1 text-xs text-slate-400">maintenance</span>
+            <span v-if="row.original.maintenance" class="ml-1 text-xs text-ink-400">maintenance</span>
           </template>
           <template #response-cell="{ row }">
             <span class="font-mono">{{
@@ -201,7 +201,7 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
               row.original.error ?? `HTTP ${row.original.statusCode}`
             }}</span>
           </template>
-          <template #empty><div class="py-6 text-center text-sm text-slate-400">No checks yet</div></template>
+          <template #empty><div class="py-6 text-center text-sm text-ink-400">No checks yet</div></template>
         </UTable>
       </UCard>
 
@@ -215,9 +215,7 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
               Attempt {{ row.original.attempt }} failed: {{ row.original.error }}
             </span>
           </template>
-          <template #empty
-            ><div class="py-6 text-center text-sm text-slate-400">No alerts sent</div></template
-          >
+          <template #empty><div class="py-6 text-center text-sm text-ink-400">No alerts sent</div></template>
         </UTable>
       </UCard>
 
@@ -226,8 +224,8 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
         <ul class="space-y-1 text-sm">
           <li v-for="w in data.maintenance" :key="w.id">
             {{ formatDateTime(w.startsAt) }} → {{ formatDateTime(w.endsAt) }}
-            <span v-if="!w.monitorId" class="text-xs text-slate-400">(all sites)</span>
-            <span v-if="w.note" class="text-slate-500">— {{ w.note }}</span>
+            <span v-if="!w.monitorId" class="text-xs text-ink-400">(all sites)</span>
+            <span v-if="w.note" class="text-ink-500">— {{ w.note }}</span>
           </li>
         </ul>
       </UCard>

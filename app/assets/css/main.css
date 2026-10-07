@@ -2,6 +2,65 @@
 @import '@nuxt/ui';
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* Arial/Helvetica is the brand body fallback for Area Normal (which isn't licensed here). */
+  --font-sans: Arial, Helvetica, sans-serif;
+  /* Athletics is the brand display face; Arial Black is the closest system fallback while the
+     real font file isn't present (see public/brand/ and the README "Brand assets" note). */
+  --font-heading: 'Athletics', 'Arial Black', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Hiyield brand — Forest Green (primary: header, CTAs, headings) */
+  --color-forest-50: #ebf7f7;
+  --color-forest-100: #d5eded;
+  --color-forest-200: #9fd4d4;
+  --color-forest-300: #6eb8b8;
+  --color-forest-400: #288585;
+  --color-forest-500: #005050;
+  --color-forest-600: #004444;
+  --color-forest-700: #003b34;
+  --color-forest-800: #003027;
+  --color-forest-900: #00241a;
+  --color-forest-950: #00170f;
+
+  /* Hiyield brand — Electric Green (accent: success, small chips, primary CTA fills) */
+  --color-electric-50: #f2fffc;
+  --color-electric-100: #e6fffa;
+  --color-electric-200: #bffff0;
+  --color-electric-300: #97fce3;
+  --color-electric-400: #4cfcc4;
+  --color-electric-500: #00faa0;
+  --color-electric-600: #00e087;
+  --color-electric-700: #00ba66;
+  --color-electric-800: #00964b;
+  --color-electric-900: #007034;
+  --color-electric-950: #00471e;
+
+  /* Forest-tinted neutral (replaces slate) — cool-green greys ending at brand black */
+  --color-ink-50: #f6f8f8;
+  --color-ink-100: #eef1f1;
+  --color-ink-200: #dde3e3;
+  --color-ink-300: #c3cccc;
+  --color-ink-400: #94a1a1;
+  --color-ink-500: #667575;
+  --color-ink-600: #4b5959;
+  --color-ink-700: #354242;
+  --color-ink-800: #1f2b2b;
+  --color-ink-900: #0f1d1d;
+  --color-ink-950: #001313;
+}
+
+/* The file isn't in the repo yet — drop it into public/brand/ (see README) to pick this up.
+   Until then every `font-heading` usage falls back to Arial Black, which renders fine; the
+   browser just 404s this request once. */
+@font-face {
+  font-family: 'Athletics';
+  src: url('/brand/Athletics-ExtraBold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  background-color: #fff;
+  color: var(--color-ink-950);
 }
