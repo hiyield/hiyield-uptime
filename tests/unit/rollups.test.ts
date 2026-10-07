@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { asc } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import * as repo from '../../server/engine/repo'
-import { rollupDelta } from '../../server/engine/rollup'
+import { dayStart, rollupDelta } from '../../server/engine/rollup'
 import { backfillRollups, pruneRollups } from '../../server/utils/rollups'
 import { makeDb, seedMonitor, schema } from './_db'
 import type { Db } from '../../server/utils/db'
 
 const NOW = Date.UTC(2026, 9, 7, 12, 0)
 const MIN = 60_000
+const DAY = 86_400_000
 
 type Spec = { at: number; ok: boolean; confirmed: boolean; maintenance: boolean; ms: number | null }
 
@@ -102,11 +103,126 @@ describe('backfillRollups', () => {
   })
 })
 
+describe('backfillRollups — oldest day', () => {
+  it('fills in a rollup_daily row for the oldest day on first backfill (no prior rollups)', async () => {
+    const db = makeDb()
+    const m = await seedMonitor(db)
+    // Oldest check mid-day (not on a day boundary), ~89 days before NOW — simulates the first
+    // backfill after deploying this release, against raw checks kept at a rolling ~90-day retention.
+    const oldest = NOW - 89 * DAY - 5 * MIN
+    await db.insert(schema.checks).values({
+      monitorId: m.id,
+      checkedAt: oldest,
+      ok: true,
+      statusCode: 200,
+      responseMs: 42,
+      region: 'primary',
+      confirmed: false,
+      maintenance: false
+    })
+
+    await backfillRollups(db, NOW)
+
+    const rows = await db
+      .select()
+      .from(schema.rollupDaily)
+      .where(eq(schema.rollupDaily.dayStart, dayStart(oldest)))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      checks: 1,
+      failures: 0,
+      blips: 0,
+      maintenance: 0,
+      respSum: 42,
+      respCount: 1,
+      respMax: 42
+    })
+  })
+
+  it('preserves an existing live oldest-day row untouched while rebuilding later days', async () => {
+    const db = makeDb()
+    const m = await seedMonitor(db)
+    const oldestDay = dayStart(NOW) - 90 * DAY
+
+    // Simulate a complete, live-written daily row for the oldest day, taken before raw-check
+    // retention pruned most of that day's checks down to a remainder.
+    await db.insert(schema.rollupDaily).values({
+      monitorId: m.id,
+      dayStart: oldestDay,
+      checks: 500,
+      failures: 10,
+      blips: 2,
+      maintenance: 1,
+      respSum: 50_000,
+      respCount: 480,
+      respMax: 900
+    })
+    // Only a sliver of raw checks remain for that day — far short of what the live row recorded.
+    await db.insert(schema.checks).values({
+      monitorId: m.id,
+      checkedAt: oldestDay + 60 * MIN,
+      ok: true,
+      statusCode: 200,
+      responseMs: 10,
+      region: 'primary',
+      confirmed: false,
+      maintenance: false
+    })
+    // A later day with full raw data and no existing rollup — must be rebuilt from scratch.
+    const laterDay = oldestDay + 5 * DAY
+    await db.insert(schema.checks).values([
+      {
+        monitorId: m.id,
+        checkedAt: laterDay + 60 * MIN,
+        ok: true,
+        statusCode: 200,
+        responseMs: 20,
+        region: 'primary',
+        confirmed: false,
+        maintenance: false
+      },
+      {
+        monitorId: m.id,
+        checkedAt: laterDay + 120 * MIN,
+        ok: false,
+        statusCode: 503,
+        responseMs: null,
+        region: 'primary',
+        confirmed: true,
+        maintenance: false
+      }
+    ])
+
+    await backfillRollups(db, NOW)
+
+    const rows = await db.select().from(schema.rollupDaily).orderBy(asc(schema.rollupDaily.dayStart))
+    const oldest = rows.find((r) => r.dayStart === oldestDay)
+    const later = rows.find((r) => r.dayStart === laterDay)
+    expect(oldest).toMatchObject({
+      checks: 500,
+      failures: 10,
+      blips: 2,
+      maintenance: 1,
+      respSum: 50_000,
+      respCount: 480,
+      respMax: 900
+    })
+    expect(later).toMatchObject({
+      checks: 2,
+      failures: 1,
+      blips: 0,
+      maintenance: 0,
+      respSum: 20,
+      respCount: 1,
+      respMax: 20
+    })
+  })
+})
+
 describe('pruneRollups', () => {
   it('drops 30-minute rows older than 8 days and daily rows older than 400 days', async () => {
     const db = makeDb()
     const m = await seedMonitor(db)
-    const DAY = 86_400_000
     await db.insert(schema.rollup30m).values([
       { monitorId: m.id, bucketStart: NOW - 9 * DAY, checks: 1 },
       { monitorId: m.id, bucketStart: NOW - 7 * DAY, checks: 1 }
