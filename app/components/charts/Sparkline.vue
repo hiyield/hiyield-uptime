@@ -83,16 +83,27 @@ const tip = computed(() => {
         </template>
       </template>
       <template v-else>
-        <rect
-          v-for="(v, i) in values"
-          :key="i"
-          :x="P + i * ((W - 2 * P) / n)"
-          :y="v ? y(v) : H - P - 1"
-          :width="barW"
-          :height="v ? H - P - y(v) : 1"
-          :fill="v ? SERIES : NEUTRAL_BAR"
-          rx="1"
-        />
+        <template v-for="(v, i) in values" :key="i">
+          <!-- null: no data, a gap — no rect. 0: real data, a neutral baseline tick (never
+               drawn like a gap). >0: the series bar. -->
+          <rect
+            v-if="v !== null && v > 0"
+            :x="P + i * ((W - 2 * P) / n)"
+            :y="y(v)"
+            :width="barW"
+            :height="H - P - y(v)"
+            :fill="SERIES"
+            rx="1"
+          />
+          <rect
+            v-else-if="v === 0"
+            :x="P + i * ((W - 2 * P) / n)"
+            :y="H - P - 1"
+            :width="barW"
+            height="1"
+            :fill="NEUTRAL_BAR"
+          />
+        </template>
       </template>
       <line
         v-if="hover != null"
