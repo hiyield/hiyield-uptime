@@ -67,6 +67,11 @@ After the first deploy:
 2. Bulk-add client sites at `/monitors/bulk`.
 3. Point an external pinger (healthchecks.io or UptimeRobot free) at `https://<host>/health`, alerting the dev team. This is what tells you if the monitor itself dies.
 4. Confirm the two cron triggers registered (Cloudflare dashboard → Worker → Settings → Triggers); `wrangler --dry-run` doesn't print them.
+5. **Rollup backfill (once, after deploying the Insights release):** charts read from rollup tables that fill as checks run. To include past checks, run:
+   `curl -X POST -H "x-admin-secret: $ADMIN_API_SECRET" https://<host>/api/cron/backfill-rollups`
+   It's safe to re-run. Locally: `curl -X POST -H "x-admin-secret: <value from .env>" http://localhost:3000/api/cron/backfill-rollups`.
+
+Already deployed before the Insights release? You don't need to repeat steps 1–4 — just run the rollup backfill (step 5) once against your existing deployment so charts cover your existing check history.
 
 **D1 plan and the status board.** The board (`/`) polls `GET /api/monitors` every 15 seconds, and each refresh scans the last 24 hours of `checks` to compute uptime — roughly 30k rows read per refresh with a typical client list (more sites or shorter intervals read more). One board left open reads ~100M+ rows/day, far past the D1 free plan's 5M rows/day. Run this on paid D1 (Workers Paid), or raise the poll interval in `app/pages/index.vue` if you must stay on the free plan.
 
