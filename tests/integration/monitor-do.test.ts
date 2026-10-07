@@ -289,6 +289,13 @@ describe('MonitorDO', () => {
     const incidents = await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm10'))
     expect(incidents).toHaveLength(1)
     expect(incidents[0]!.resolvedAt).not.toBeNull()
+    // Only the first (completed) tick wrote a rollup row; the gated/paused tick wrote none.
+    expect(
+      (await db.select().from(schema.rollup30m).where(eq(schema.rollup30m.monitorId, 'm10'))).reduce(
+        (a, r) => a + r.checks,
+        0
+      )
+    ).toBe(1)
   })
 
   it('delete while a tick is in flight: the tick aborts and leaves no storage behind', async () => {
@@ -314,6 +321,7 @@ describe('MonitorDO', () => {
     })
     expect(h.sent).toEqual([])
     expect(await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm11'))).toEqual([])
+    expect(await db.select().from(schema.rollup30m).where(eq(schema.rollup30m.monitorId, 'm11'))).toEqual([])
   })
 
   it('a probe that throws counts the failure as confirmed', async () => {
@@ -336,5 +344,45 @@ describe('MonitorDO', () => {
     const incidents = await db.select().from(schema.incidents).where(eq(schema.incidents.monitorId, 'm12'))
     expect(incidents).toHaveLength(1)
     expect(incidents[0]!.resolvedAt).toBeNull()
+  })
+
+  it('ticks write rollups: up, blip and maintenance counted in the right columns', async () => {
+    clock = T
+    await seed('m13')
+    const h = harness()
+    h.primary.push(res(true), res(false), res(false))
+    h.probe.push(res(true), res(false))
+    await withMonitor('m13', h, async (m) => {
+      await m.reload('m13')
+      await m.alarm() // up
+      clock += 60_000
+      await m.alarm() // blip (probe ok)
+      clock += 60_000
+      await db.insert(schema.maintenanceWindows).values({
+        id: 'mw_m13',
+        monitorId: 'm13',
+        startsAt: clock - 1,
+        endsAt: clock + 3_600_000,
+        createdBy: 'a@hiyield.co.uk',
+        createdAt: clock
+      })
+      await m.alarm() // confirmed failure during maintenance
+    })
+    const sum = async (table: typeof schema.rollup30m | typeof schema.rollupDaily) => {
+      const rows = await db.select().from(table).where(eq(table.monitorId, 'm13'))
+      return rows.reduce(
+        (a, r) => ({
+          checks: a.checks + r.checks,
+          failures: a.failures + r.failures,
+          blips: a.blips + r.blips,
+          maintenance: a.maintenance + r.maintenance,
+          respCount: a.respCount + r.respCount
+        }),
+        { checks: 0, failures: 0, blips: 0, maintenance: 0, respCount: 0 }
+      )
+    }
+    const expected = { checks: 3, failures: 0, blips: 1, maintenance: 1, respCount: 3 }
+    expect(await sum(schema.rollup30m)).toEqual(expected)
+    expect(await sum(schema.rollupDaily)).toEqual(expected)
   })
 })

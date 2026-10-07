@@ -5,6 +5,7 @@ import { evaluate, initialState, type EvaluateResult } from './evaluate'
 import { createSender, type SendAlert } from './notify'
 import { probeCheck } from './probeClient'
 import * as repo from './repo'
+import { rollupDelta } from './rollup'
 import { runCheck } from './runCheck'
 import type { Action, CheckResult, MonitorConfig, MonitorState } from './types'
 
@@ -237,6 +238,20 @@ export class MonitorDO {
               ]
             : [])
         ]),
+      undefined
+    )
+
+    // Rollups only for a tick that is still current — a paused/deleted monitor gets no new rows.
+    await current()
+    await safe(
+      'upsertRollups',
+      () =>
+        repo.upsertRollups(
+          db,
+          monitorId,
+          primary.checkedAt,
+          rollupDelta(primary, { confirmed, maintenance: inMaintenance })
+        ),
       undefined
     )
 

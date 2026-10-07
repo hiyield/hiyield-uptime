@@ -1,6 +1,7 @@
-import { and, eq, gt, isNull, lte, or } from 'drizzle-orm'
+import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import * as schema from '../db/schema'
+import { bucket30m, dayStart, type RollupDelta } from './rollup'
 import type { Contact, MonitorConfig, MonitorStatus } from './types'
 
 /** Same shape as server/utils/db.ts `Db`; redeclared so the engine never imports Nitro code. */
@@ -90,6 +91,41 @@ export async function getContactsForMonitor(db: EngineDb, monitorId: string): Pr
 
 export async function insertDelivery(db: EngineDb, row: NewDelivery): Promise<void> {
   await db.insert(schema.alertDeliveries).values(row)
+}
+
+// Column names are fixed literals, never input — safe to inline as raw SQL.
+const ROLLUP_ACCUMULATE = {
+  checks: sql.raw('checks + excluded.checks'),
+  failures: sql.raw('failures + excluded.failures'),
+  blips: sql.raw('blips + excluded.blips'),
+  maintenance: sql.raw('maintenance + excluded.maintenance'),
+  respSum: sql.raw('resp_sum + excluded.resp_sum'),
+  respCount: sql.raw('resp_count + excluded.resp_count'),
+  respMax: sql.raw('max(resp_max, excluded.resp_max)')
+}
+
+/** Adds one check's delta to its 30-minute and daily rollup rows (insert or accumulate). */
+export async function upsertRollups(
+  db: EngineDb,
+  monitorId: string,
+  checkedAt: number,
+  delta: RollupDelta
+): Promise<void> {
+  const values = { monitorId, ...delta }
+  await db
+    .insert(schema.rollup30m)
+    .values({ ...values, bucketStart: bucket30m(checkedAt) })
+    .onConflictDoUpdate({
+      target: [schema.rollup30m.monitorId, schema.rollup30m.bucketStart],
+      set: ROLLUP_ACCUMULATE
+    })
+  await db
+    .insert(schema.rollupDaily)
+    .values({ ...values, dayStart: dayStart(checkedAt) })
+    .onConflictDoUpdate({
+      target: [schema.rollupDaily.monitorId, schema.rollupDaily.dayStart],
+      set: ROLLUP_ACCUMULATE
+    })
 }
 
 export async function updateMonitorStatus(

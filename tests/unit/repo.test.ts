@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import * as repo from '../../server/engine/repo'
+import { rollupDelta } from '../../server/engine/rollup'
 import { makeDb, seedContact, seedMonitor, schema, T0 } from './_db'
 
 describe('repo', () => {
@@ -135,5 +136,55 @@ describe('repo', () => {
     })
     const row = await db.query.monitors.findFirst({ where: eq(schema.monitors.id, m.id) })
     expect(row).toMatchObject({ paused: true, status: 'paused', consecutiveFailures: 0, lastCheckedAt: null })
+  })
+})
+
+describe('upsertRollups', () => {
+  const ck = (ok: boolean, ms: number | null, at: number) => ({
+    ok,
+    statusCode: ok ? 200 : 503,
+    responseMs: ms,
+    error: null,
+    checkedAt: at
+  })
+
+  it('accumulates within a bucket and keeps the max response', async () => {
+    const db = makeDb()
+    const m = await seedMonitor(db)
+    const base = Date.UTC(2026, 9, 7, 10, 0)
+    await repo.upsertRollups(
+      db,
+      m.id,
+      base + 1000,
+      rollupDelta(ck(true, 100, base), { confirmed: false, maintenance: false })
+    )
+    await repo.upsertRollups(
+      db,
+      m.id,
+      base + 2000,
+      rollupDelta(ck(false, 300, base), { confirmed: true, maintenance: false })
+    )
+    const [r30] = await db.select().from(schema.rollup30m)
+    expect(r30).toMatchObject({
+      bucketStart: base,
+      checks: 2,
+      failures: 1,
+      blips: 0,
+      respSum: 400,
+      respCount: 2,
+      respMax: 300
+    })
+    const [rd] = await db.select().from(schema.rollupDaily)
+    expect(rd).toMatchObject({ dayStart: Date.UTC(2026, 9, 7), checks: 2, failures: 1, respMax: 300 })
+  })
+
+  it('separate buckets and days get separate rows', async () => {
+    const db = makeDb()
+    const m = await seedMonitor(db)
+    const d = rollupDelta(ck(true, 50, 0), { confirmed: false, maintenance: false })
+    await repo.upsertRollups(db, m.id, Date.UTC(2026, 9, 7, 23, 50), d)
+    await repo.upsertRollups(db, m.id, Date.UTC(2026, 9, 8, 0, 10), d)
+    expect(await db.select().from(schema.rollup30m)).toHaveLength(2)
+    expect(await db.select().from(schema.rollupDaily)).toHaveLength(2)
   })
 })

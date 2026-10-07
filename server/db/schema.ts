@@ -98,7 +98,7 @@ export const alertDeliveries = sqliteTable('alert_deliveries', {
   sentAt: integer('sent_at').notNull()
 })
 
-const rollupCounters = {
+const rollupCounters = () => ({
   checks: integer('checks').notNull().default(0),
   failures: integer('failures').notNull().default(0),
   blips: integer('blips').notNull().default(0),
@@ -106,7 +106,7 @@ const rollupCounters = {
   respSum: integer('resp_sum').notNull().default(0),
   respCount: integer('resp_count').notNull().default(0),
   respMax: integer('resp_max').notNull().default(0)
-}
+})
 
 export const rollup30m = sqliteTable(
   'rollup_30m',
@@ -115,7 +115,7 @@ export const rollup30m = sqliteTable(
       .notNull()
       .references(() => monitors.id, { onDelete: 'cascade' }),
     bucketStart: integer('bucket_start').notNull(),
-    ...rollupCounters
+    ...rollupCounters()
   },
   (t) => [primaryKey({ columns: [t.monitorId, t.bucketStart] })]
 )
@@ -127,7 +127,7 @@ export const rollupDaily = sqliteTable(
       .notNull()
       .references(() => monitors.id, { onDelete: 'cascade' }),
     dayStart: integer('day_start').notNull(),
-    ...rollupCounters
+    ...rollupCounters()
   },
   (t) => [primaryKey({ columns: [t.monitorId, t.dayStart] })]
 )
