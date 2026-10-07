@@ -98,9 +98,44 @@ export const alertDeliveries = sqliteTable('alert_deliveries', {
   sentAt: integer('sent_at').notNull()
 })
 
+const rollupCounters = {
+  checks: integer('checks').notNull().default(0),
+  failures: integer('failures').notNull().default(0),
+  blips: integer('blips').notNull().default(0),
+  maintenance: integer('maintenance').notNull().default(0),
+  respSum: integer('resp_sum').notNull().default(0),
+  respCount: integer('resp_count').notNull().default(0),
+  respMax: integer('resp_max').notNull().default(0)
+}
+
+export const rollup30m = sqliteTable(
+  'rollup_30m',
+  {
+    monitorId: text('monitor_id')
+      .notNull()
+      .references(() => monitors.id, { onDelete: 'cascade' }),
+    bucketStart: integer('bucket_start').notNull(),
+    ...rollupCounters
+  },
+  (t) => [primaryKey({ columns: [t.monitorId, t.bucketStart] })]
+)
+
+export const rollupDaily = sqliteTable(
+  'rollup_daily',
+  {
+    monitorId: text('monitor_id')
+      .notNull()
+      .references(() => monitors.id, { onDelete: 'cascade' }),
+    dayStart: integer('day_start').notNull(),
+    ...rollupCounters
+  },
+  (t) => [primaryKey({ columns: [t.monitorId, t.dayStart] })]
+)
+
 export type MonitorRow = typeof monitors.$inferSelect
 export type ContactRow = typeof contacts.$inferSelect
 export type CheckRow = typeof checks.$inferSelect
 export type IncidentRow = typeof incidents.$inferSelect
 export type MaintenanceRow = typeof maintenanceWindows.$inferSelect
 export type DeliveryRow = typeof alertDeliveries.$inferSelect
+export type RollupRow = typeof rollupDaily.$inferSelect

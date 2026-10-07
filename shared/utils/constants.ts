@@ -26,3 +26,10 @@ export const MONITOR_DEFAULTS = {
 export const LAUNCH_WATCH = { intervalS: 60, failThreshold: 1 } as const
 
 export const ALLOWED_EMAIL_DOMAIN = 'hiyield.co.uk'
+
+/** Rollups (see docs/superpowers/specs/2026-10-07-insights-design.md). Days are UTC. */
+export const ROLLUP_30M_MS = 1_800_000
+export const DAY_MS = 86_400_000
+export const ROLLUP_30M_RETENTION_DAYS = 8
+export const ROLLUP_DAILY_RETENTION_DAYS = 400
+export const BOARD_BUCKETS = 48
