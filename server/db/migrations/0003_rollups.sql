@@ -26,3 +26,8 @@ create table rollup_daily (
   primary key (monitor_id, day_start)
 );
 create index rollup_daily_day on rollup_daily (day_start);
+
+-- The board's incidents-per-day query filters by started_at only (not monitor_id, to avoid D1's
+-- 100-bound-parameter limit on large fleets); the existing (monitor_id, started_at) composite
+-- index can't serve that filter efficiently since started_at isn't its leading column.
+create index incidents_started on incidents (started_at);

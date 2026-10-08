@@ -106,4 +106,40 @@ describe('boardCharts', () => {
     expect(summary.series.incidents14d[13]).toBe(1)
     expect(summary.series.uptime30d[29]).toBe(99)
   })
+
+  it('works with >=100 monitors without binding one SQL param per monitor, and still filters to the given monitors', async () => {
+    // D1 rejects a statement with over 100 bound params; a 150-monitor fleet with the old
+    // `inArray(incidents.monitorId, monitorIds)` filter would 500 there (sqlite doesn't enforce
+    // that limit, so this test instead proves the JS-side Set filtering is correct).
+    const db = makeDb()
+    const monitors = []
+    for (let i = 0; i < 150; i++) monitors.push(await seedMonitor(db))
+    const today = Date.UTC(2026, 9, 7)
+    // One incident per monitor today, plus one for a monitor NOT passed to boardCharts.
+    await db.insert(schema.incidents).values(
+      monitors.map((m, i) => ({
+        id: `i${i}`,
+        monitorId: m.id,
+        startedAt: today + 1000,
+        confirmedAt: today + 1000,
+        cause: 'x'
+      }))
+    )
+    const excluded = await seedMonitor(db)
+    await db.insert(schema.incidents).values({
+      id: 'i_excluded',
+      monitorId: excluded.id,
+      startedAt: today + 1000,
+      confirmedAt: today + 1000,
+      cause: 'x'
+    })
+
+    const { summary } = await boardCharts(
+      db,
+      monitors.map((m) => m.id),
+      NOW
+    )
+    expect(summary.series.incidents14d[13]).toBe(150) // excluded monitor's incident must not count
+    expect(summary.incidents7d).toBe(150)
+  })
 })

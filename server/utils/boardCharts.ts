@@ -1,4 +1,4 @@
-import { and, gte, inArray } from 'drizzle-orm'
+import { gte } from 'drizzle-orm'
 import * as schema from '../db/schema'
 import { BOARD_BUCKETS, DAY_MS, ROLLUP_30M_MS } from '../../shared/utils/constants'
 import { uptimePercent } from './uptime'
@@ -90,14 +90,16 @@ export async function boardCharts(
 
   const r30 = await db.select().from(schema.rollup30m).where(gte(schema.rollup30m.bucketStart, buckets[0]!))
   const rd = await db.select().from(schema.rollupDaily).where(gte(schema.rollupDaily.dayStart, days30[0]!))
-  const inc = monitorIds.length
-    ? await db
-        .select({ startedAt: schema.incidents.startedAt })
-        .from(schema.incidents)
-        .where(
-          and(gte(schema.incidents.startedAt, days14[0]!), inArray(schema.incidents.monitorId, monitorIds))
-        )
-    : []
+  // D1 binds one parameter per `inArray` value and rejects statements over 100 bound params, so a
+  // fleet of >=100 monitors would 500 here. Incidents cascade-delete with their monitor, so we don't
+  // need to filter by monitor_id in SQL at all — filter the (already small) result set in JS instead.
+  const monitorIdSet = new Set(monitorIds)
+  const inc = (
+    await db
+      .select({ monitorId: schema.incidents.monitorId, startedAt: schema.incidents.startedAt })
+      .from(schema.incidents)
+      .where(gte(schema.incidents.startedAt, days14[0]!))
+  ).filter((i) => monitorIdSet.has(i.monitorId))
 
   const byMonitorBucket = new Map<string, Counters>()
   for (const r of r30) byMonitorBucket.set(`${r.monitorId}:${r.bucketStart}`, r)

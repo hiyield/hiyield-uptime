@@ -26,6 +26,7 @@ npm run dev             # nuxt dev on :3000 + engine sidecar (Durable Objects) o
 
 Google Cloud console (Hiyield Workspace) → APIs & Services → Credentials → OAuth client ID → Web application.
 Authorised redirect URIs:
+
 - `http://localhost:3000/api/auth/callback/google`
 - `https://<staging host>/api/auth/callback/google`
 - `https://<production host>/api/auth/callback/google`
@@ -73,7 +74,7 @@ After the first deploy:
 
 Already deployed before the Insights release? You don't need to repeat steps 1–4 — just run the rollup backfill (step 5) once against your existing deployment so charts cover your existing check history.
 
-**D1 plan and the status board.** The board (`/`) polls `GET /api/monitors` every 15 seconds, and each refresh scans the last 24 hours of `checks` to compute uptime — roughly 30k rows read per refresh with a typical client list (more sites or shorter intervals read more). One board left open reads ~100M+ rows/day, far past the D1 free plan's 5M rows/day. Run this on paid D1 (Workers Paid), or raise the poll interval in `app/pages/index.vue` if you must stay on the free plan.
+**D1 plan and the status board.** The board (`/`) polls `GET /api/monitors` every 15 seconds. Each refresh now reads from the rollup tables, not raw checks: up to 48 `rollup_30m` rows (the 24h window) plus up to 30 `rollup_daily` rows (the 30d window) per monitor — about 78 rollup rows per monitor per refresh, so roughly 8k rows per refresh at 100 sites. One board left open at 100 sites still reads ≈45M rows/day (5,760 refreshes/day × 8k rows), which is still above the D1 free plan's 5M rows/day. Run this on paid D1 (Workers Paid), or raise the poll interval in `app/pages/index.vue` if you must stay on the free plan. Insights (`/insights`) reads up to 365 `rollup_daily` rows per monitor per page load for the `1y` range.
 
 Custom domain: not set yet. When decided, add a `routes` entry with `custom_domain: true` to the env in `wrangler.jsonc`, update `PUBLIC_BASE_URL` / `BETTER_AUTH_URL`, and add the new Google redirect URI.
 
