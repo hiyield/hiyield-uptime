@@ -112,20 +112,30 @@ export async function upsertRollups(
   delta: RollupDelta
 ): Promise<void> {
   const values = { monitorId, ...delta }
-  await db
+  const q30 = db
     .insert(schema.rollup30m)
     .values({ ...values, bucketStart: bucket30m(checkedAt) })
     .onConflictDoUpdate({
       target: [schema.rollup30m.monitorId, schema.rollup30m.bucketStart],
       set: ROLLUP_ACCUMULATE
     })
-  await db
+  const qDaily = db
     .insert(schema.rollupDaily)
     .values({ ...values, dayStart: dayStart(checkedAt) })
     .onConflictDoUpdate({
       target: [schema.rollupDaily.monitorId, schema.rollupDaily.dayStart],
       set: ROLLUP_ACCUMULATE
     })
+  // D1 supports db.batch to apply both upserts atomically, so a crash between the two can never
+  // leave the 30-minute and daily rollups disagreeing. The unit tests run against better-sqlite3
+  // drizzle, which has no `batch` — fall back to running sequentially there (same end result,
+  // just without the atomicity guarantee, which single-threaded tests don't need).
+  if (typeof db.batch === 'function') {
+    await db.batch([q30, qDaily])
+  } else {
+    await q30
+    await qDaily
+  }
 }
 
 export async function updateMonitorStatus(

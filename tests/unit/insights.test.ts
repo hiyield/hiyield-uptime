@@ -94,12 +94,21 @@ describe('getInsights', () => {
     ])
   })
 
-  it('1y aggregates into 7-day periods', async () => {
+  it('1y aggregates into 7-day periods built backward from now', async () => {
     const db = makeDb()
     const r = await getInsights(db, '1y', NOW)
-    expect(r.periods).toHaveLength(53) // 365 days → 52 full weeks + 1 day
-    expect(r.periods[0]!.end - r.periods[0]!.start).toBe(7 * D)
-    expect(r.periods[52]!.end).toBe(NOW)
+    expect(r.periods).toHaveLength(53) // 365 days → 52 full weeks back from now + 1 shorter oldest period
+    const last = r.periods[52]!
+    expect(last.end).toBe(NOW)
+    expect(last.start).toBe(today - 6 * D) // newest period: the 7 calendar days ending today (today truncated at NOW)
+    const first = r.periods[0]!
+    expect(first.start).toBe(r.from)
+    expect(first.end - first.start).toBeLessThan(7 * D) // oldest period may be shorter
+    expect(first.end - first.start).toBe(D) // 365 % 7 === 1 leftover day
+    for (let i = 0; i < r.periods.length - 1; i++) {
+      expect(r.periods[i]!.end).toBe(r.periods[i + 1]!.start) // periods are contiguous
+    }
+    expect(last.start - first.start).toBe(358 * D) // 52 weeks - 1 day: periods together span all 365 days
   })
 
   it('caps rankings at 10', async () => {

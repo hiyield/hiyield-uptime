@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import * as repo from '../../server/engine/repo'
 import { rollupDelta } from '../../server/engine/rollup'
+import type { EngineDb } from '../../server/engine/repo'
 import { makeDb, seedContact, seedMonitor, schema, T0 } from './_db'
 
 describe('repo', () => {
@@ -186,5 +187,56 @@ describe('upsertRollups', () => {
     await repo.upsertRollups(db, m.id, Date.UTC(2026, 9, 8, 0, 10), d)
     expect(await db.select().from(schema.rollup30m)).toHaveLength(2)
     expect(await db.select().from(schema.rollupDaily)).toHaveLength(2)
+  })
+
+  it('applies both upserts through db.batch (one atomic round trip) when the db supports it', async () => {
+    const executed: string[] = []
+    // A minimal fake D1-shaped db: `insert().values().onConflictDoUpdate()` returns a lazy,
+    // thenable "query" (like a real drizzle builder) that only runs once awaited directly or
+    // handed to `batch`. This isolates the branching logic in upsertRollups from the real
+    // drizzle/D1 driver, which the unit test suite has no access to.
+    const chain = (label: string) => ({
+      values: () => chain(label),
+      onConflictDoUpdate: () => chain(label),
+      then: (resolve: (v: unknown) => void) => {
+        executed.push(label)
+        resolve(undefined)
+      }
+    })
+    const batch = vi.fn(async (queries: unknown[]) => Promise.all(queries))
+    let calls = 0
+    const fakeDb = {
+      insert: () => chain(calls++ === 0 ? '30m' : 'daily'),
+      batch
+    } as unknown as EngineDb
+
+    const d = rollupDelta(ck(true, 50, 0), { confirmed: false, maintenance: false })
+    await repo.upsertRollups(fakeDb, 'mon_1', Date.UTC(2026, 9, 7, 10, 0), d)
+
+    expect(batch).toHaveBeenCalledTimes(1)
+    expect(batch.mock.calls[0]![0]).toHaveLength(2)
+    expect(executed).toEqual(['30m', 'daily'])
+  })
+
+  it('falls back to running sequentially when the db has no batch (better-sqlite3 drizzle)', async () => {
+    const executed: string[] = []
+    const chain = (label: string) => ({
+      values: () => chain(label),
+      onConflictDoUpdate: () => chain(label),
+      then: (resolve: (v: unknown) => void) => {
+        executed.push(label)
+        resolve(undefined)
+      }
+    })
+    let calls = 0
+    const fakeDb = {
+      insert: () => chain(calls++ === 0 ? '30m' : 'daily')
+      // no `batch` property, like drizzle-orm/better-sqlite3's db
+    } as unknown as EngineDb
+
+    const d = rollupDelta(ck(true, 50, 0), { confirmed: false, maintenance: false })
+    await repo.upsertRollups(fakeDb, 'mon_1', Date.UTC(2026, 9, 7, 10, 0), d)
+
+    expect(executed).toEqual(['30m', 'daily'])
   })
 })

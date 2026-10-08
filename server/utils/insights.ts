@@ -30,13 +30,24 @@ export interface Insights {
 function buildPeriods(range: RangeKey, now: number): Period[] {
   const days = bucketStarts(now, RANGE_DAYS[range], DAY_MS)
   const step = range === '1y' ? 7 : 1
-  const out: Period[] = []
-  for (let i = 0; i < days.length; i += step) {
-    const start = days[i]!
-    const endIdx = i + step
-    out.push({ start, end: endIdx < days.length ? days[endIdx]! : now })
+  if (step === 1) {
+    return days.map((start, i) => ({ start, end: i + 1 < days.length ? days[i + 1]! : now }))
   }
-  return out
+  // Group backward from `now` in `step`-day chunks so the NEWEST period is always a full
+  // `step`-day period ending now; any leftover days land in the OLDEST period, which may be
+  // shorter. Grouping forward from the oldest day (as a naive loop would) instead leaves a
+  // stray one-day "week" at the newest end, which is wrong for charting recent trends.
+  const out: Period[] = []
+  let end = now
+  let idx = days.length
+  while (idx > 0) {
+    const take = Math.min(step, idx)
+    const start = days[idx - take]!
+    out.push({ start, end })
+    end = start
+    idx -= take
+  }
+  return out.reverse()
 }
 
 export async function getInsights(db: Db, range: RangeKey, now: number): Promise<Insights> {
