@@ -42,16 +42,23 @@ const span = computed(() => (props.times.length > 1 ? props.times[1]! - props.ti
 
 function onMove(e: PointerEvent) {
   const r = (e.currentTarget as Element).getBoundingClientRect()
+  if (!r.width) return
   const i = Math.round(((e.clientX - r.left) / r.width) * (n.value - 1))
   hover.value = Math.max(0, Math.min(n.value - 1, i))
 }
 
+// Near the first/last ~15% of points a centred tooltip gets clipped by an ancestor's
+// `overflow-hidden` (e.g. UCard). Pin it to that edge instead of centring it there.
+const EDGE = 0.15
 const tip = computed(() => {
   if (hover.value == null) return null
   const v = props.values[hover.value]
   const t = props.times[hover.value]
+  const frac = x(hover.value) / W
+  const align = frac < EDGE ? 'start' : frac > 1 - EDGE ? 'end' : 'center'
   return {
-    left: `${(x(hover.value) / W) * 100}%`,
+    align,
+    style: align === 'start' ? { left: '0' } : align === 'end' ? { right: '0' } : { left: `${frac * 100}%` },
     text: `${v == null ? 'No data' : props.format(v)} · ${t != null ? formatBucketTime(t, span.value) : ''}`
   }
 })
@@ -118,8 +125,9 @@ const tip = computed(() => {
     </svg>
     <div
       v-if="tip"
-      class="pointer-events-none absolute -top-8 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-accented bg-elevated px-2 py-1 font-mono text-xs text-highlighted"
-      :style="{ left: tip.left }"
+      class="pointer-events-none absolute -top-8 z-10 whitespace-nowrap rounded-md border border-accented bg-elevated px-2 py-1 font-mono text-xs text-highlighted"
+      :class="tip.align === 'center' ? '-translate-x-1/2' : ''"
+      :style="tip.style"
     >
       {{ tip.text }}
     </div>

@@ -114,7 +114,7 @@ const columns: TableColumn<BoardRowWithCharts>[] = [
         label="Down now"
         :value="String(lastSummary.downNow)"
         :tone="lastSummary.downNow > 0 ? 'danger' : 'default'"
-        :sub="lastSummary.downNow > 0 ? 'sites currently down' : 'all monitored sites up'"
+        :sub="lastSummary.downNow > 0 ? 'sites currently down' : 'none confirmed down'"
       />
       <ChartsStatTile label="Uptime 24h" :value="pct(lastSummary.uptime24h)">
         <ChartsSparkline

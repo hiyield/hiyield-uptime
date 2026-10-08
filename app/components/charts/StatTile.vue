@@ -1,5 +1,6 @@
 <script setup lang="ts">
 withDefaults(defineProps<{ label: string; value: string; sub?: string; tone?: 'default' | 'danger' }>(), {
+  sub: undefined,
   tone: 'default'
 })
 </script>

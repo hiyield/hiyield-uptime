@@ -79,6 +79,10 @@ const periodColumns: TableColumn<InsightsPeriod>[] = [
   { accessorKey: 'incidents', header: 'Incidents' },
   { id: 'sites', header: 'Sites affected' }
 ]
+const incidentColumns: TableColumn<InsightsPeriod>[] = [
+  { id: 'date', header: 'Period' },
+  { id: 'incidents', header: 'Incidents' }
+]
 type WorstRow = Insights['worst'][number]
 const worstColumns: TableColumn<WorstRow>[] = [
   { accessorKey: 'name', header: 'Site' },
@@ -109,6 +113,7 @@ const slowColumns: TableColumn<SlowRow>[] = [
           :key="r.value"
           :variant="range === r.value ? 'solid' : 'outline'"
           color="neutral"
+          :aria-pressed="range === r.value"
           @click="setRange(r.value)"
         >
           {{ r.label }}
@@ -144,99 +149,109 @@ const slowColumns: TableColumn<SlowRow>[] = [
         description="Data appears as checks run. To include past checks, run the rollup backfill (see README)."
       />
 
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <span class="font-medium">Downtime {{ data.range === '1y' ? 'per week' : 'per day' }}</span>
-            <UButton variant="link" color="neutral" size="xs" @click="toggleTable('downtime')">
-              {{ showTable.downtime ? 'View as chart' : 'View as table' }}
-            </UButton>
-          </div>
-        </template>
-        <ChartsPeriodBars
-          v-if="!showTable.downtime"
-          :periods="downtimeBars"
-          :color="STATE_COLOR.down"
-          :format="dur"
-          :tooltip="downtimeTip"
-          label="Downtime per period"
-        />
-        <UTable v-else :data="data.periods" :columns="periodColumns">
-          <template #date-cell="{ row }">{{ fmtDate(row.original) }}</template>
-          <template #downtime-cell="{ row }">{{ dur(row.original.downtimeMs) }}</template>
-          <template #sites-cell="{ row }">{{
-            row.original.sites.map((s) => s.name).join(', ') || '—'
-          }}</template>
-        </UTable>
-        <div class="mt-6">
-          <div class="mb-2 flex items-center justify-between text-sm">
-            <span class="font-medium">Incidents {{ data.range === '1y' ? 'per week' : 'per day' }}</span>
-          </div>
-          <ChartsPeriodBars
-            :periods="incidentBars"
-            :color="NEUTRAL_BAR"
-            :height="64"
-            :format="formatCount"
-            :tooltip="incidentTip"
-            label="Incidents started per period"
-          />
-        </div>
-      </UCard>
-
-      <div class="grid gap-4 lg:grid-cols-2">
+      <template v-if="hasData">
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <span class="font-medium">Most downtime</span>
-              <UButton variant="link" color="neutral" size="xs" @click="toggleTable('worst')">
-                {{ showTable.worst ? 'View as chart' : 'View as table' }}
+              <span class="font-medium">Downtime {{ data.range === '1y' ? 'per week' : 'per day' }}</span>
+              <UButton variant="link" color="neutral" size="xs" @click="toggleTable('downtime')">
+                {{ showTable.downtime ? 'View as chart' : 'View as table' }}
               </UButton>
             </div>
           </template>
-          <ChartsRankList
-            v-if="!showTable.worst"
-            :rows="worstRows"
+          <ChartsPeriodBars
+            v-if="!showTable.downtime"
+            :periods="downtimeBars"
             :color="STATE_COLOR.down"
             :format="dur"
-            empty="No downtime in this period."
+            :tooltip="downtimeTip"
+            label="Downtime per period"
           />
-          <UTable v-else :data="data.worst" :columns="worstColumns">
-            <template #name-cell="{ row }">
-              <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
-                row.original.name
-              }}</NuxtLink>
-            </template>
-            <template #dt-cell="{ row }">{{ dur(row.original.downtimeMs) }}</template>
-            <template #up-cell="{ row }">{{ pct(row.original.uptime) }}</template>
+          <UTable v-else :data="data.periods" :columns="periodColumns">
+            <template #date-cell="{ row }">{{ fmtDate(row.original) }}</template>
+            <template #downtime-cell="{ row }">{{ dur(row.original.downtimeMs) }}</template>
+            <template #sites-cell="{ row }">{{
+              row.original.sites.map((s) => s.name).join(', ') || '—'
+            }}</template>
           </UTable>
-        </UCard>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <span class="font-medium"
-                >Slowest response <span class="text-xs text-dimmed">average (worst)</span></span
-              >
-              <UButton variant="link" color="neutral" size="xs" @click="toggleTable('slowest')">
-                {{ showTable.slowest ? 'View as chart' : 'View as table' }}
+          <div class="mt-6">
+            <div class="mb-2 flex items-center justify-between text-sm">
+              <span class="font-medium">Incidents {{ data.range === '1y' ? 'per week' : 'per day' }}</span>
+              <UButton variant="link" color="neutral" size="xs" @click="toggleTable('incidents')">
+                {{ showTable.incidents ? 'View as chart' : 'View as table' }}
               </UButton>
             </div>
-          </template>
-          <ChartsRankList
-            v-if="!showTable.slowest"
-            :rows="slowRows"
-            :color="SERIES"
-            :format="formatMs"
-            empty="No response data in this period."
-          />
-          <UTable v-else :data="data.slowest" :columns="slowColumns">
-            <template #name-cell="{ row }">
-              <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
-                row.original.name
-              }}</NuxtLink>
-            </template>
-          </UTable>
+            <ChartsPeriodBars
+              v-if="!showTable.incidents"
+              :periods="incidentBars"
+              :color="NEUTRAL_BAR"
+              :height="64"
+              :format="formatCount"
+              :tooltip="incidentTip"
+              label="Incidents started per period"
+            />
+            <UTable v-else :data="data.periods" :columns="incidentColumns">
+              <template #date-cell="{ row }">{{ fmtDate(row.original) }}</template>
+              <template #incidents-cell="{ row }">{{ row.original.incidents }}</template>
+            </UTable>
+          </div>
         </UCard>
-      </div>
+
+        <div class="grid gap-4 lg:grid-cols-2">
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-medium">Most downtime</span>
+                <UButton variant="link" color="neutral" size="xs" @click="toggleTable('worst')">
+                  {{ showTable.worst ? 'View as chart' : 'View as table' }}
+                </UButton>
+              </div>
+            </template>
+            <ChartsRankList
+              v-if="!showTable.worst"
+              :rows="worstRows"
+              :color="STATE_COLOR.down"
+              :format="dur"
+              empty="No downtime in this period."
+            />
+            <UTable v-else :data="data.worst" :columns="worstColumns">
+              <template #name-cell="{ row }">
+                <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
+                  row.original.name
+                }}</NuxtLink>
+              </template>
+              <template #dt-cell="{ row }">{{ dur(row.original.downtimeMs) }}</template>
+              <template #up-cell="{ row }">{{ pct(row.original.uptime) }}</template>
+            </UTable>
+          </UCard>
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-medium"
+                  >Slowest response <span class="text-xs text-dimmed">average (worst)</span></span
+                >
+                <UButton variant="link" color="neutral" size="xs" @click="toggleTable('slowest')">
+                  {{ showTable.slowest ? 'View as chart' : 'View as table' }}
+                </UButton>
+              </div>
+            </template>
+            <ChartsRankList
+              v-if="!showTable.slowest"
+              :rows="slowRows"
+              :color="SERIES"
+              :format="formatMs"
+              empty="No response data in this period."
+            />
+            <UTable v-else :data="data.slowest" :columns="slowColumns">
+              <template #name-cell="{ row }">
+                <NuxtLink :to="`/monitors/${row.original.id}`" class="font-medium hover:underline">{{
+                  row.original.name
+                }}</NuxtLink>
+              </template>
+            </UTable>
+          </UCard>
+        </div>
+      </template>
     </template>
   </div>
 </template>

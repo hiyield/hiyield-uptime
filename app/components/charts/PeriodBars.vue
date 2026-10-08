@@ -29,6 +29,22 @@ const lastLabel = computed(() => {
   const p = props.periods[props.periods.length - 1]
   return p ? formatBucketTime(p.start, 86_400_000) : ''
 })
+
+// Near the first/last ~15% of bars a centred tooltip gets clipped by an ancestor's
+// `overflow-hidden` (e.g. UCard). Pin it to that edge instead of centring it there.
+const EDGE = 0.15
+const tipAlign = computed(() => {
+  if (hover.value == null) return 'center'
+  const frac = (hover.value + 0.5) / props.periods.length
+  return frac < EDGE ? 'start' : frac > 1 - EDGE ? 'end' : 'center'
+})
+const tipStyle = computed(() => {
+  if (hover.value == null) return {}
+  const frac = (hover.value + 0.5) / props.periods.length
+  if (tipAlign.value === 'start') return { left: '0' }
+  if (tipAlign.value === 'end') return { right: '0' }
+  return { left: `${frac * 100}%` }
+})
 </script>
 
 <template>
@@ -71,8 +87,9 @@ const lastLabel = computed(() => {
     </div>
     <div
       v-if="hover != null && hover < periods.length"
-      class="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-accented bg-elevated px-2 py-1 text-xs text-highlighted"
-      :style="{ left: `${((hover + 0.5) / periods.length) * 100}%` }"
+      class="pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-md border border-accented bg-elevated px-2 py-1 text-xs text-highlighted"
+      :class="tipAlign === 'center' ? '-translate-x-1/2' : ''"
+      :style="tipStyle"
     >
       <div v-for="l in tooltip(hover)" :key="l">{{ l }}</div>
     </div>
