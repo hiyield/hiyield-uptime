@@ -3,6 +3,7 @@ import * as schema from '../db/schema'
 import { STATUS_SORT, type MonitorStatus } from '../../shared/utils/status'
 import { boardCharts, type BoardSummary, type MonitorCharts } from './boardCharts'
 import { uptimePercent } from './uptime'
+import { tagsByMonitor } from './monitors'
 import type { Db } from './db'
 
 export const DAY = 86_400_000
@@ -53,6 +54,7 @@ export interface BoardRow {
   id: string
   name: string
   url: string
+  tags: string[]
   status: MonitorStatus
   paused: boolean
   intervalS: number
@@ -93,12 +95,17 @@ export async function listBoard(
     .groupBy(schema.incidents.monitorId)
   const downSince = new Map(open.map((o) => [o.monitorId, Number(o.startedAt)]))
   const maint = await activeMaintenance(db, now)
+  const tags = await tagsByMonitor(
+    db,
+    monitors.map((m) => m.id)
+  )
 
   return monitors
     .map((m) => ({
       id: m.id,
       name: m.name,
       url: m.url,
+      tags: tags.get(m.id) ?? [],
       status: m.status,
       paused: m.paused,
       intervalS: m.intervalS,

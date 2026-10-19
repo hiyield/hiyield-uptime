@@ -4,7 +4,9 @@ import type { MonitorInput } from '~~/shared/utils/validation'
 
 const route = useRoute()
 const id = route.params.id as string
-const { data: monitor, error } = await useFetch<MonitorRow & { contactIds: string[] }>(`/api/monitors/${id}`)
+const { data: monitor, error } = await useFetch<MonitorRow & { contactIds: string[]; tags: string[] }>(
+  `/api/monitors/${id}`
+)
 
 const initial = computed<MonitorInput | null>(() =>
   monitor.value
@@ -16,7 +18,8 @@ const initial = computed<MonitorInput | null>(() =>
         failThreshold: monitor.value.failThreshold,
         reminderMins: monitor.value.reminderMins,
         paused: monitor.value.paused,
-        contactIds: monitor.value.contactIds
+        contactIds: monitor.value.contactIds,
+        tags: monitor.value.tags
       }
     : null
 )

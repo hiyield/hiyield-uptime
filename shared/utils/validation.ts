@@ -2,8 +2,11 @@ import { z } from 'zod'
 import {
   FAIL_THRESHOLD_MAX,
   FAIL_THRESHOLD_MIN,
+  INCIDENT_NOTE_MAX,
   INTERVALS_S,
   REMINDER_MINS,
+  TAG_MAX_LENGTH,
+  TAGS_PER_MONITOR_MAX,
   TIMEOUT_MS_MAX,
   TIMEOUT_MS_MIN
 } from './constants'
@@ -31,6 +34,32 @@ const urlField = z.string().transform((v, ctx) => {
   return n
 })
 
+export const TAG_ERROR = `Tags are letters, numbers and hyphens, up to ${TAG_MAX_LENGTH} characters`
+
+/** Lowercase, trimmed, inner whitespace → "-". Null if the result isn't `[a-z0-9][a-z0-9-]*` within length. */
+export function normaliseTag(raw: string): string | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '-')
+  if (!t || t.length > TAG_MAX_LENGTH) return null
+  return /^[a-z0-9][a-z0-9-]*$/.test(t) ? t : null
+}
+
+const tagsField = z
+  .array(z.string())
+  .max(TAGS_PER_MONITOR_MAX, `Up to ${TAGS_PER_MONITOR_MAX} tags per monitor`)
+  .default([])
+  .transform((list, ctx) => {
+    const out: string[] = []
+    for (const raw of list) {
+      const t = normaliseTag(raw)
+      if (!t) {
+        ctx.addIssue({ code: 'custom', message: TAG_ERROR })
+        return z.NEVER
+      }
+      if (!out.includes(t)) out.push(t)
+    }
+    return out
+  })
+
 export const monitorInputSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),
   url: urlField,
@@ -45,7 +74,8 @@ export const monitorInputSchema = z.object({
     .int()
     .refine((v) => REMINDER_MINS.includes(v), 'Choose a reminder from the list'),
   paused: z.boolean(),
-  contactIds: z.array(z.string()).max(50).default([])
+  contactIds: z.array(z.string()).max(50).default([]),
+  tags: tagsField
 })
 export type MonitorInput = z.output<typeof monitorInputSchema>
 
@@ -95,3 +125,8 @@ export const maintenanceSchema = z
   })
   .refine((v) => v.endsAt > v.startsAt, { message: 'End must be after start', path: ['endsAt'] })
 export type MaintenanceInput = z.output<typeof maintenanceSchema>
+
+export const incidentNoteSchema = z.object({
+  note: z.string().trim().max(INCIDENT_NOTE_MAX, `Keep notes under ${INCIDENT_NOTE_MAX} characters`)
+})
+export type IncidentNoteInput = z.output<typeof incidentNoteSchema>

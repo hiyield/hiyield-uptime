@@ -6,6 +6,7 @@ Internal uptime monitor for Hiyield client sites. Spec: `docs/superpowers/specs/
 
 - One **MonitorDO** (Durable Object) per site runs its own alarm loop: check → if failed, confirm via **ProbeDO** (eastern US) → `evaluate()` decides → write D1 → alert.
 - Alerts go to **contacts** (Slack incoming webhooks, email via Resend) linked per site.
+- Sites carry free-form **tags** (client, host, stack); the board filters by tag via `?tag=`. Incidents take a **note** (cause, fix, ticket) from the site page.
 - `/health` returns 500 if any active monitor stops checking. An external pinger watches it.
 - Crons: every 10 min reload any quiet monitor; daily 03:00 UTC prune checks older than 90 days.
 
@@ -21,6 +22,7 @@ npm run dev             # nuxt dev on :3000 + engine sidecar (Durable Objects) o
 
 - `nuxt dev` can't host Durable Objects, so DO calls are forwarded to the sidecar (`wrangler.dev.jsonc`). Both share the local D1.
 - Full production-like loop (built worker, real bindings): `npm run cf:dev` → http://localhost:8787.
+- Ports taken by another project? Run the two halves yourself: `npx nuxt dev --port 3001` with `DEV_ENGINE_URL=http://localhost:8788`, and `npx wrangler dev -c wrangler.dev.jsonc --port 8788 --inspector-port 9230`.
 
 ### Google sign-in
 

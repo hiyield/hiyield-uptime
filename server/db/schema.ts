@@ -2,7 +2,7 @@ import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
 import type { MonitorStatus } from '../../shared/utils/status'
 
 /**
- * Drizzle schema for app tables. Mirrors server/db/migrations/0002_uptime.sql —
+ * Drizzle schema for app tables. Mirrors server/db/migrations/0002_uptime.sql onwards —
  * the SQL files are the source of truth; keep this in lock-step.
  * Better Auth's tables (0001) are not declared: only Better Auth touches them.
  */
@@ -47,6 +47,17 @@ export const monitorContacts = sqliteTable(
   (t) => [primaryKey({ columns: [t.monitorId, t.contactId] })]
 )
 
+export const monitorTags = sqliteTable(
+  'monitor_tags',
+  {
+    monitorId: text('monitor_id')
+      .notNull()
+      .references(() => monitors.id, { onDelete: 'cascade' }),
+    tag: text('tag').notNull()
+  },
+  (t) => [primaryKey({ columns: [t.monitorId, t.tag] })]
+)
+
 export const checks = sqliteTable('checks', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   monitorId: text('monitor_id')
@@ -71,7 +82,10 @@ export const incidents = sqliteTable('incidents', {
   confirmedAt: integer('confirmed_at').notNull(),
   resolvedAt: integer('resolved_at'),
   cause: text('cause').notNull(),
-  lastReminderAt: integer('last_reminder_at')
+  lastReminderAt: integer('last_reminder_at'),
+  note: text('note').notNull().default(''),
+  noteBy: text('note_by'),
+  noteAt: integer('note_at')
 })
 
 export const maintenanceWindows = sqliteTable('maintenance_windows', {

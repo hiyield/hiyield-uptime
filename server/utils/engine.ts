@@ -2,8 +2,8 @@ import { createError, type H3Event } from 'h3'
 
 export type EngineOp = 'reload' | 'stop' | 'check-now' | 'destroy'
 
-/** Sidecar started by `npm run dev` (wrangler.dev.jsonc). */
-const DEV_ENGINE_URL = 'http://localhost:8787'
+/** Sidecar started by `npm run dev` (wrangler.dev.jsonc). Override with DEV_ENGINE_URL if :8787 is taken. */
+const DEV_ENGINE_URL = process.env.DEV_ENGINE_URL ?? 'http://localhost:8787'
 
 /**
  * Tell a site's MonitorDO about a change. Deployed (and cf:dev): via the MONITOR binding.

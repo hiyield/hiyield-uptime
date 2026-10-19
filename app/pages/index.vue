@@ -37,6 +37,15 @@ const now = useNow({ scheduler: (cb) => useIntervalFn(cb, 1000) })
 type Filter = 'all' | 'down' | 'up' | 'paused'
 const search = ref('')
 const filter = ref<Filter>('all')
+// Tag filter lives in the URL (?tag=kinsta) so a chip or a shared link lands on the filtered board.
+const route = useRoute()
+const router = useRouter()
+const tag = computed({
+  get: () => (typeof route.query.tag === 'string' ? route.query.tag : ''),
+  set: (v: string) => {
+    void router.replace({ query: { ...route.query, tag: v || undefined } })
+  }
+})
 const filterItems: { label: string; value: Filter }[] = [
   { label: 'All', value: 'all' },
   { label: 'Down / suspect', value: 'down' },
@@ -45,6 +54,16 @@ const filterItems: { label: string; value: Filter }[] = [
 ]
 
 const monitors = computed(() => lastGood.value ?? [])
+const tagItems = computed(() => {
+  const counts = new Map<string, number>()
+  for (const m of monitors.value) for (const t of m.tags) counts.set(t, (counts.get(t) ?? 0) + 1)
+  const items = [...counts]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([t, n]) => ({ label: `${t} (${n})`, value: t }))
+  // Keep a tag from the URL selectable even if no monitor carries it any more.
+  if (tag.value && !counts.has(tag.value)) items.push({ label: `${tag.value} (0)`, value: tag.value })
+  return [{ label: 'All tags', value: '' }, ...items]
+})
 const isDown = (m: BoardRow) => m.status === 'down' || m.status === 'suspect'
 const isUp = (m: BoardRow) => m.status === 'up' || m.status === 'unknown'
 
@@ -66,6 +85,7 @@ const rows = computed(() =>
   monitors.value.filter((m) => {
     const q = search.value.trim().toLowerCase()
     if (q && !m.name.toLowerCase().includes(q) && !m.url.toLowerCase().includes(q)) return false
+    if (tag.value && !m.tags.includes(tag.value)) return false
     if (filter.value === 'down') return isDown(m)
     if (filter.value === 'up') return isUp(m)
     if (filter.value === 'paused') return m.status === 'paused'
@@ -167,6 +187,14 @@ const columns: TableColumn<BoardRowWithCharts>[] = [
     <div class="flex flex-wrap gap-2">
       <UInput v-model="search" icon="i-lucide-search" placeholder="Search name or URL" class="w-64" />
       <USelect v-model="filter" :items="filterItems" class="w-44" />
+      <USelect
+        v-if="tagItems.length > 1"
+        v-model="tag"
+        :items="tagItems"
+        icon="i-lucide-tag"
+        class="w-48"
+        aria-label="Filter by tag"
+      />
     </div>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
@@ -179,6 +207,7 @@ const columns: TableColumn<BoardRowWithCharts>[] = [
             {{ row.original.name }}
           </NuxtLink>
           <div class="font-mono text-xs text-muted">{{ row.original.url }}</div>
+          <TagList :tags="row.original.tags" linked class="mt-1" />
         </template>
         <template #last24h-cell="{ row }">
           <ChartsUptimeBar
