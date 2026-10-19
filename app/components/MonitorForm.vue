@@ -13,7 +13,11 @@ const props = defineProps<{
   save: (input: MonitorInput) => Promise<void>
 }>()
 
-const state = reactive<MonitorInput>({ ...props.initial, contactIds: [...props.initial.contactIds] })
+const state = reactive<MonitorInput>({
+  ...props.initial,
+  contactIds: [...props.initial.contactIds],
+  tags: [...props.initial.tags]
+})
 const saving = ref(false)
 
 const timeoutS = computed({
@@ -110,6 +114,14 @@ async function onSubmit(e: FormSubmitEvent<MonitorInput>) {
           : `Down — ${testResult.error}`
       "
     />
+
+    <UFormField
+      label="Tags"
+      name="tags"
+      help="Group sites by client, host or stack. Letters, numbers and hyphens; Enter or comma to add."
+    >
+      <TagInput v-model="state.tags" />
+    </UFormField>
 
     <div class="flex items-center justify-between gap-4 rounded-md border border-default bg-elevated p-3">
       <div>

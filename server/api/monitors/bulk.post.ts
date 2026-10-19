@@ -1,8 +1,13 @@
 import { z } from 'zod'
 import * as schema from '../../db/schema'
 
+const bulkSchema = z.object({
+  text: z.string().max(50_000),
+  tags: monitorInputSchema.shape.tags
+})
+
 export default defineEventHandler(async (event) => {
-  const { text } = await validateBody(event, z.object({ text: z.string().max(50_000) }))
+  const { text, tags } = await validateBody(event, bulkSchema)
   const db = useDb(event)
   const existing = await db.select({ url: schema.monitors.url }).from(schema.monitors)
   const rows = parseBulk(
@@ -23,7 +28,7 @@ export default defineEventHandler(async (event) => {
     const id = crypto.randomUUID()
     await createMonitor(
       db,
-      monitorInputSchema.parse({ ...MONITOR_DEFAULTS, name: row.name, url: row.url, contactIds }),
+      monitorInputSchema.parse({ ...MONITOR_DEFAULTS, name: row.name, url: row.url, contactIds, tags }),
       now,
       id
     )

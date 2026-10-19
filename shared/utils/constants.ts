@@ -25,6 +25,10 @@ export const MONITOR_DEFAULTS = {
 /** "Launch watch" preset for newly launched sites. */
 export const LAUNCH_WATCH = { intervalS: 60, failThreshold: 1 } as const
 
+export const TAG_MAX_LENGTH = 30
+export const TAGS_PER_MONITOR_MAX = 10
+export const INCIDENT_NOTE_MAX = 2000
+
 export const ALLOWED_EMAIL_DOMAIN = 'hiyield.co.uk'
 
 /** Rollups (see docs/superpowers/specs/2026-10-07-insights-design.md). Days are UTC. */

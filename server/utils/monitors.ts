@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import * as schema from '../db/schema'
 import type { MonitorInput } from '../../shared/utils/validation'
 import type { Db } from './db'
@@ -19,8 +19,43 @@ async function replaceContacts(db: Db, monitorId: string, contactIds: string[]):
   }
 }
 
+async function replaceTags(db: Db, monitorId: string, tags: string[]): Promise<void> {
+  await db.delete(schema.monitorTags).where(eq(schema.monitorTags.monitorId, monitorId))
+  for (const tag of new Set(tags)) {
+    await db.insert(schema.monitorTags).values({ monitorId, tag })
+  }
+}
+
+export interface TagCount {
+  tag: string
+  count: number
+}
+
+/** Every tag in use, most-used first then alphabetical. */
+export async function listTags(db: Db): Promise<TagCount[]> {
+  const t = schema.monitorTags
+  const count = sql<number>`count(*)`
+  const rows = await db.select({ tag: t.tag, count }).from(t).groupBy(t.tag).orderBy(desc(count), asc(t.tag))
+  return rows.map((r) => ({ tag: r.tag, count: Number(r.count) }))
+}
+
+/** Tags per monitor, sorted. Monitors without tags map to []. Chunked to stay under D1's 100-parameter limit. */
+export async function tagsByMonitor(db: Db, monitorIds: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>(monitorIds.map((id) => [id, []]))
+  const t = schema.monitorTags
+  for (let i = 0; i < monitorIds.length; i += 90) {
+    const rows = await db
+      .select()
+      .from(t)
+      .where(inArray(t.monitorId, monitorIds.slice(i, i + 90)))
+      .orderBy(asc(t.tag))
+    for (const r of rows) out.get(r.monitorId)?.push(r.tag)
+  }
+  return out
+}
+
 export async function createMonitor(db: Db, input: MonitorInput, now: number, id: string): Promise<void> {
-  const { contactIds, ...fields } = input
+  const { contactIds, tags, ...fields } = input
   await db.insert(schema.monitors).values({
     id,
     ...fields,
@@ -29,19 +64,21 @@ export async function createMonitor(db: Db, input: MonitorInput, now: number, id
     updatedAt: now
   })
   await replaceContacts(db, id, contactIds)
+  await replaceTags(db, id, tags)
 }
 
 /** Returns false if the monitor doesn't exist. Status is left to the engine/pause routes. */
 export async function updateMonitor(db: Db, id: string, input: MonitorInput, now: number): Promise<boolean> {
   const existing = await db.query.monitors.findFirst({ where: eq(schema.monitors.id, id) })
   if (!existing) return false
-  const { contactIds, ...fields } = input
+  const { contactIds, tags, ...fields } = input
   const status = fields.paused ? 'paused' : existing.status === 'paused' ? 'unknown' : existing.status
   await db
     .update(schema.monitors)
     .set({ ...fields, status, updatedAt: now })
     .where(eq(schema.monitors.id, id))
   await replaceContacts(db, id, contactIds)
+  await replaceTags(db, id, tags)
   return true
 }
 
@@ -52,5 +89,6 @@ export async function getMonitorWithContacts(db: Db, id: string) {
     .select({ contactId: schema.monitorContacts.contactId })
     .from(schema.monitorContacts)
     .where(eq(schema.monitorContacts.monitorId, id))
-  return { ...monitor, contactIds: links.map((l) => l.contactId) }
+  const tags = (await tagsByMonitor(db, [id])).get(id) ?? []
+  return { ...monitor, contactIds: links.map((l) => l.contactId), tags }
 }

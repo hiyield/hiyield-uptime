@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { CheckRow, IncidentRow, MaintenanceRow, MonitorRow } from '~~/server/db/schema'
+import { INCIDENT_NOTE_MAX } from '~~/shared/utils/constants'
 import { formatDuration, formatInterval } from '~~/shared/utils/format'
 
 interface DeliveryItem {
@@ -13,7 +14,7 @@ interface DeliveryItem {
   contactName: string
 }
 interface History {
-  monitor: MonitorRow & { contactIds: string[] }
+  monitor: MonitorRow & { contactIds: string[]; tags: string[] }
   uptime: { h24: number | null; d7: number | null; d30: number | null }
   series: { h24: { t: number; avgMs: number }[]; d7: { t: number; avgMs: number }[] }
   incidents: IncidentRow[]
@@ -70,11 +71,46 @@ function resumeMonitor() {
 
 const pct = (v: number | null) => (v == null ? '—' : `${v}%`)
 
+// Incident notes: one modal, re-used for whichever row was clicked.
+const noteFor = ref<IncidentRow | null>(null)
+const noteDraft = ref('')
+const noteOpen = computed({
+  get: () => noteFor.value !== null,
+  set: (v: boolean) => {
+    if (!v) noteFor.value = null
+  }
+})
+const savingNote = ref(false)
+function openNote(i: IncidentRow) {
+  noteFor.value = i
+  noteDraft.value = i.note
+}
+function closeNote() {
+  noteFor.value = null
+}
+async function saveNote() {
+  if (!noteFor.value) return
+  savingNote.value = true
+  try {
+    await $fetch(`/api/incidents/${noteFor.value.id}/note`, {
+      method: 'PUT',
+      body: { note: noteDraft.value }
+    })
+    noteFor.value = null
+    await refresh()
+  } catch (e) {
+    useToast().add({ title: 'Could not save note', description: errorMessage(e), color: 'error' })
+  } finally {
+    savingNote.value = false
+  }
+}
+
 const incidentColumns: TableColumn<IncidentRow>[] = [
   { id: 'started', header: 'Started' },
   { id: 'resolved', header: 'Resolved' },
   { id: 'duration', header: 'Duration' },
-  { accessorKey: 'cause', header: 'Cause' }
+  { accessorKey: 'cause', header: 'Cause' },
+  { id: 'note', header: 'Note' }
 ]
 const checkColumns: TableColumn<CheckRow>[] = [
   { id: 'time', header: 'Time' },
@@ -109,6 +145,7 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
           >
             {{ m.url }}
           </a>
+          <TagList :tags="m.tags" linked size="sm" />
           <p class="text-xs text-dimmed">
             Every {{ formatInterval(m.intervalS) }} · alert after {{ m.failThreshold }} confirmed failure(s) ·
             reminders {{ m.reminderMins ? `every ${m.reminderMins} min` : 'off' }}
@@ -176,9 +213,53 @@ const deliveryColumns: TableColumn<DeliveryItem>[] = [
               {{ formatDuration((row.original.resolvedAt ?? now.getTime()) - row.original.startedAt) }}
             </span>
           </template>
+          <template #note-cell="{ row }">
+            <div class="flex items-start gap-2">
+              <div v-if="row.original.note" class="min-w-0">
+                <div class="text-sm whitespace-pre-line">{{ row.original.note }}</div>
+                <div v-if="row.original.noteBy" class="text-xs text-dimmed">
+                  {{ row.original.noteBy }} · {{ formatDateTime(row.original.noteAt ?? 0) }}
+                </div>
+              </div>
+              <UButton
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                :icon="row.original.note ? 'i-lucide-pencil' : 'i-lucide-message-square-plus'"
+                :aria-label="row.original.note ? 'Edit note' : 'Add note'"
+                @click="openNote(row.original)"
+              >
+                {{ row.original.note ? '' : 'Add note' }}
+              </UButton>
+            </div>
+          </template>
           <template #empty><div class="py-6 text-center text-sm text-dimmed">No incidents</div></template>
         </UTable>
       </UCard>
+
+      <UModal v-model:open="noteOpen" title="Incident note">
+        <template #body>
+          <div class="space-y-2">
+            <p v-if="noteFor" class="text-xs text-dimmed">
+              {{ formatDateTime(noteFor.startedAt) }} · {{ noteFor.cause }}
+            </p>
+            <UTextarea
+              v-model="noteDraft"
+              :rows="5"
+              autofocus
+              :maxlength="INCIDENT_NOTE_MAX"
+              class="w-full"
+              placeholder="What happened, what fixed it, ticket link…"
+            />
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton variant="ghost" color="neutral" @click="closeNote">Cancel</UButton>
+            <UButton :loading="savingNote" @click="saveNote">Save note</UButton>
+          </div>
+        </template>
+      </UModal>
 
       <UCard :ui="{ body: 'p-0 sm:p-0' }">
         <template #header><span class="font-medium">Recent checks</span></template>

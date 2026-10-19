@@ -2,7 +2,7 @@
 import { MONITOR_DEFAULTS } from '~~/shared/utils/constants'
 import type { MonitorInput } from '~~/shared/utils/validation'
 
-const initial: MonitorInput = { ...MONITOR_DEFAULTS, name: '', url: '', contactIds: [] }
+const initial: MonitorInput = { ...MONITOR_DEFAULTS, name: '', url: '', contactIds: [], tags: [] }
 
 async function create(input: MonitorInput) {
   try {

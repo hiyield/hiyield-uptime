@@ -4,6 +4,7 @@ import type { BoardRow } from '~~/server/utils/stats'
 import { parseBulk, type BulkRow } from '~~/shared/utils/bulk'
 
 const text = ref('')
+const tags = ref<string[]>([])
 // Existing monitors, so the preview can flag "Already monitored" before submitting (the server checks too).
 const { data: existing } = await useFetch<{ monitors: BoardRow[] }>('/api/monitors')
 const rows = computed(() =>
@@ -27,7 +28,7 @@ async function submit() {
   try {
     const { created } = await $fetch<{ created: number }>('/api/monitors/bulk', {
       method: 'POST',
-      body: { text: text.value }
+      body: { text: text.value, tags: tags.value }
     })
     useToast().add({ title: `Added ${created} monitors`, color: 'success' })
     await navigateTo('/')
@@ -55,6 +56,9 @@ async function submit() {
       class="w-full font-mono"
       placeholder="Acme Ltd, https://www.acme.co.uk&#10;Beta Bakery, https://betabakery.com"
     />
+    <UFormField label="Tags for all of these" help="Optional. Applied to every monitor added below.">
+      <TagInput v-model="tags" />
+    </UFormField>
     <UCard v-if="rows.length" :ui="{ body: 'p-0 sm:p-0' }">
       <UTable :data="rows" :columns="columns">
         <template #url-cell="{ row }">
